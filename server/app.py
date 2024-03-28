@@ -4,6 +4,8 @@ from flask import request
 from apps.datacheck import bp as checkbp
 from apps.delay import bp as delaybp,TestNode
 from apps.script import bp as scriptbp
+from apps.agentcomm import bp as agentbp
+from apps.task import bp as taskbp
 import pandas as pd
 
 # 注册蓝图
@@ -11,6 +13,8 @@ app = APIFlask(__name__,template_folder='./static/templates')
 app.register_blueprint(checkbp)
 app.register_blueprint(delaybp)
 app.register_blueprint(scriptbp)
+app.register_blueprint(agentbp)
+app.register_blueprint(taskbp)
 
 
 @app.get('/')
