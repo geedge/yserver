@@ -33,16 +33,6 @@ class Delay(Schema):
 class DelayOut(Schema):
     delay_data=List(Nested(Delay))
 
-# 时延数据列表初始化
-# icmpdelay_state={}
-# tcpdelay_state={}
-# dnsdelay_state={}
-# df=pd.read_csv("./server.csv",encoding="utf-8")
-# for index,row in df.iterrows():
-#     icmpdelay_state[row['id']]={}
-#     tcpdelay_state[row['id']]={}
-#     dnsdelay_state[row['id']]={}
-
 
 @bp.get("/<string:type>")
 @bp.doc("获取每个节点的时延数据","type参数为{icmp,dns,tcp}中的一个")
@@ -61,27 +51,6 @@ def get_pernode_delay(query_data,type):
         threads.append(mythread)
     for t in threads:
         t.join()
-    # if type=="icmp":
-    #     df=pd.read_csv("./server.csv",encoding="utf-8")
-    #     for index,row in df.iterrows():
-    #         ans.append({
-    #             'Id':row['id'],
-    #             'CurrDelay':icmp_delay_query(addr,row['ip']),
-    #             'Type':type})
-    # if type=="tcp":
-    #     df=pd.read_csv("./server.csv",encoding="utf-8")
-    #     for index,row in df.iterrows():
-    #         ans.append({
-    #             'Id':row['id'],
-    #             'CurrDelay':tcp_delay_query(addr,row['ip']),
-    #             'Type':type})
-    # if type=="dns":
-    #     df=pd.read_csv("./server.csv",encoding="utf-8")
-    #     for index,row in df.iterrows():
-    #         ans.append({
-    #             'Id':row['id'],
-    #             'CurrDelay':dns_delay_query(addr,row['ip']),
-    #             'Type':type})
     return {'delay_data':ans}
 
 threadLock = threading.Lock()

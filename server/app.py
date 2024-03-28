@@ -4,7 +4,6 @@ from flask import request
 from apps.datacheck import bp as checkbp
 from apps.delay import bp as delaybp,TestNode
 from apps.script import bp as scriptbp
-from apps.map import bp as mapbp
 import pandas as pd
 
 # 注册蓝图
@@ -12,7 +11,7 @@ app = APIFlask(__name__,template_folder='./static/templates')
 app.register_blueprint(checkbp)
 app.register_blueprint(delaybp)
 app.register_blueprint(scriptbp)
-app.register_blueprint(mapbp)
+
 
 @app.get('/')
 @app.doc("获取测试页面")
