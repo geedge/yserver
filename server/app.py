@@ -1,9 +1,8 @@
-from apiflask import APIFlask,Schema,PaginationSchema
+from apiflask import APIFlask,Schema
 from apiflask.fields import List,Nested
-from flask import request
 from apps.datacheck import bp as checkbp
 from apps.delay import bp as delaybp,TestNode
-from apps.script import bp as scriptbp
+from agent.apps.script import bp as scriptbp
 from apps.agentcomm import bp as agentbp
 from apps.task import bp as taskbp
 import pandas as pd
