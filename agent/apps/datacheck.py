@@ -12,9 +12,8 @@ bp=APIBlueprint("check",__name__,url_prefix="/check")
 @bp.input({
     'rev':String(required=True),
     'domain':String(required=True),
-    'qtype':String(required=True,validate=OneOf(['A','AAAA']))
+    'qtype':String(required=True,validate=OneOf(['A','AAAA',"CNAME","NS"]))
     },location='query')
-@bp.output({'ans':List(Nested({"ip":String()}))})
 def record(query_data):
     # 特殊协议头
     protols=["https","tls"]
@@ -46,7 +45,7 @@ def record(query_data):
     myAnswers = myResolver.resolve(domain, qtype)
     if myAnswers.rrset is not None:
         for r in myAnswers.rrset:
-            ans.append({"ip":str(r)})
+            ans.append({"rrset":str(r)})
     return {'ans':ans}
 
     
