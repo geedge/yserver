@@ -32,3 +32,10 @@ def deliver_task():
 # TODO:代理输出接收接口实现
 def task_ret():
     return "ok"
+
+
+@bp.get("/")
+@bp.doc("代理信息获取接口", hide=True)
+# TODO:代理信息获取接口实现
+def agent_info():
+    return "ok"

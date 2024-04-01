@@ -7,8 +7,8 @@ import geocoder
 import psutil
 import requests
 from apiflask import APIFlask
+from server.apps.datacheck import bp as datacheckbp
 
-from apps.datacheck import bp as datacheckbp
 from apps.delay import bp as scriptbp
 
 # 注册蓝图

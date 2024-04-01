@@ -1,48 +1,31 @@
 import argparse
 
-from apiflask import APIFlask, Schema
-from apiflask.fields import List, Nested
+from apiflask import APIFlask
 
-from agent.apps.datacheck import bp as checkbp
-from agent.apps.delay import bp as scriptbp
 from apps.agentcomm import bp as agentbp
-from apps.delay import bp as delaybp, TestNode
+from apps.sysinfo import bp as sysbp
+from apps.sysmange import bp as mangbp
+from apps.target import bp as targetbp
 from apps.task import bp as taskbp
 
 # 注册蓝图
 app = APIFlask(__name__, template_folder='./static/templates')
-app.register_blueprint(checkbp)
-app.register_blueprint(delaybp)
-app.register_blueprint(scriptbp)
+# 目标状态获取接口
+app.register_blueprint(targetbp)
+# 代理接口
 app.register_blueprint(agentbp)
+# 任务管理接口
 app.register_blueprint(taskbp)
+# 系统管理接口
+app.register_blueprint(mangbp)
+# 系统状态获取接口
+app.register_blueprint(sysbp)
 
 
 @app.get('/')
 @app.doc("获取测试页面")
 def hello():
     return "这是一个正常的测试页面"
-
-
-class AllNode(Schema):
-    nodes = List(Nested(TestNode))
-
-
-# 获取所有节点的信息
-# @app.get('/allnode')
-# @app.doc("节点信息获取接口", "返回当前所有探测节点的信息")
-# @app.output(AllNode)
-# def nodeinfo():
-#     df = pd.read_csv("./server.csv", encoding="utf-8")
-#     ans = []
-#     for index, row in df.iterrows():
-#         ans.append({
-#             'Id': row['id'],
-#             'Name': row['name'],
-#             'Ip': row['ip'],
-#             'Loc': row['loc'],
-#             'Port': row['port']})
-#     return {'nodes': ans}
 
 
 if __name__ == '__main__':
