@@ -20,4 +20,15 @@ bp = APIBlueprint("agent", __name__, url_prefix="/agent")
 def register_agent(query_data):
     print(query_data)
 
-# 代理任务下发接口
+
+# 代理任务下发
+def deliver_task():
+    pass
+
+
+# 代理输出接收
+@bp.post("/res")
+@bp.doc("代理输出消息接收接口", hide=True)
+# TODO:代理输出接收接口实现
+def task_ret():
+    return "ok"

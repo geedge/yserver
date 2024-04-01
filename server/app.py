@@ -4,7 +4,7 @@ from apiflask import APIFlask, Schema
 from apiflask.fields import List, Nested
 
 from agent.apps.datacheck import bp as checkbp
-from agent.apps.script import bp as scriptbp
+from agent.apps.delay import bp as scriptbp
 from apps.agentcomm import bp as agentbp
 from apps.delay import bp as delaybp, TestNode
 from apps.task import bp as taskbp
