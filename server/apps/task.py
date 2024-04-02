@@ -1,7 +1,7 @@
 # 任务管理接口
 from apiflask import APIBlueprint
 
-bp = APIBlueprint("task", __name__, url_prefix="/task")
+bp = APIBlueprint("任务管理接口集合", __name__, url_prefix="/task")
 
 
 # 创建任务接口

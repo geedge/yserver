@@ -1,7 +1,7 @@
 # 系统管理——用户管理
 from apiflask import APIBlueprint
 
-bp = APIBlueprint("user", __name__, url_prefix="/user")
+bp = APIBlueprint("系统管理接口集合", __name__, url_prefix="/user")
 
 
 @bp.get("/")

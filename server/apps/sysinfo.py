@@ -12,7 +12,7 @@ from apiflask import APIBlueprint, Schema
 from apiflask.fields import Date, Integer, Nested, Dict, DateTime, String, List
 from apiflask.validators import OneOf
 
-bp = APIBlueprint("sys", __name__, url_prefix="/sys")
+bp = APIBlueprint("仪表盘接口", __name__, url_prefix="/sys")
 
 
 class TargetOut(Schema):

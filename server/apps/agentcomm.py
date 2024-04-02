@@ -8,7 +8,7 @@ from faker import Faker
 
 fake = Faker("zh_CN")
 
-bp = APIBlueprint("agent", __name__, url_prefix="/agent")
+bp = APIBlueprint("代理管理接口集合", __name__, url_prefix="/agent")
 
 
 class agent(Schema):

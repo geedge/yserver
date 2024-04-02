@@ -1,19 +1,35 @@
 # 目标状态感知
-
+import random
 # 时延测试接口
 import threading
 
 import pandas as pd
 import requests
 from apiflask import APIBlueprint, Schema
-from apiflask.fields import Integer, String, List, Nested, IP
+from apiflask.fields import Integer, String, List, Nested, IP, DateTime
+from faker import Faker
+from faker.providers import company
 from requests.exceptions import Timeout
 
-bp = APIBlueprint("target", __name__, url_prefix="/target")
+fake = Faker("zh_CN")
+fake.add_provider(company)
+bp = APIBlueprint("目标信息及状态接口集合", __name__, url_prefix="/target")
 
 icmp_delaytable = {}
 tcp_delaytable = {}
 dns_delaytable = {}
+
+
+class Target(Schema):
+    ipv4 = String()
+    ipv6 = String()
+    protocol = List(String())
+    protect = List(String())
+    cou = String()
+    isp = String()
+    lat = String()
+    lng = String()
+    time = DateTime()
 
 
 class TestNode(Schema):
@@ -183,3 +199,33 @@ def record(query_data):
         for r in myAnswers.rrset:
             ans.append({"rrset": str(r)})
     return {'ans': ans}
+
+
+@bp.get("/")
+@bp.doc("目标信息获取接口", "返回目标信息")
+@bp.input({
+    "per_page": Integer(load_default=10),
+    "page": Integer(load_default=1)
+}, location='query')
+@bp.output({
+    "data": List(Nested(Target()))
+})
+def target_info(query_data):
+    per_page = query_data["per_page"]
+    target_list = []
+
+    for _ in range(per_page):
+        lat, lng, _, cou, _ = fake.location_on_land()
+        target_list.append({
+            "ipv4": fake.ipv4_public(),
+            "ipv6": fake.ipv6(),
+            "protocol": random.choices(["IPv6", "DNSSEC", "DoH", "DoT"], k=random.randint(1, 4)),
+            "protect": random.choices(["0x20", "端口随机化", "请求最小化", "DNSSEC验证"], k=random.randint(1, 4)),
+            "cou": cou,
+            "lat": lat,
+            "lng": lng,
+            "isp": fake.company(),
+            "time": fake.date_time_between('-2y'),
+        })
+
+    return {"data": target_list}
