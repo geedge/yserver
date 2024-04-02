@@ -90,8 +90,8 @@ def target_date():
 
 @bp.get("/log")
 @bp.input({
-    "per_page": Integer(default=10),
-    "page": Integer(default=1)
+    "per_page": Integer(load_default=10),
+    "page": Integer(load_default=1)
 }, location="query")
 @bp.doc("系统操作日志获取接口", "返回系统的操作日志")
 @bp.output({
