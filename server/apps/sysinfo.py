@@ -89,14 +89,22 @@ def target_date():
 
 
 @bp.get("/log")
+@bp.input({
+    "per_page": Integer(default=10),
+    "page": Integer(default=1)
+}, location="query")
 @bp.doc("系统操作日志获取接口", "返回系统的操作日志")
 @bp.output({
     "log_data": List(Nested(LogOut()))
 })
-def sys_log():
+def sys_log(query_data):
+    # 每页显示多少项
+    per_page = query_data["per_page"]
+    # 页数
+    page = query_data["page"]
     log_list = []
     # TODO:具体实现
-    for i in range(30):
+    for i in range(per_page):
         log_list.append({
             "time": fake.date_time_between(start_date="-1y"),
             "level": fake.word(ext_word_list=["INFO", "WARNING", "ERROR"]),
