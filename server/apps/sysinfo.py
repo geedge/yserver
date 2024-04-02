@@ -2,11 +2,7 @@
 import datetime
 
 # 测试用
-from faker import Faker
-from faker.providers import date_time
-
-fake = Faker('zh_CN')
-fake.add_provider(date_time)
+from apps.util import fake
 
 from apiflask import APIBlueprint, Schema
 from apiflask.fields import Date, Integer, Nested, Dict, DateTime, String, List

@@ -4,9 +4,8 @@ import random
 from apiflask import APIBlueprint, Schema
 from apiflask.fields import String, Integer, List, Nested, Boolean, DateTime
 from apiflask.validators import OneOf
-from faker import Faker
+from apps.util import fake
 
-fake = Faker("zh_CN")
 
 bp = APIBlueprint("代理管理接口集合", __name__, url_prefix="/agent")
 

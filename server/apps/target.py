@@ -7,12 +7,9 @@ import pandas as pd
 import requests
 from apiflask import APIBlueprint, Schema
 from apiflask.fields import Integer, String, List, Nested, IP, DateTime
-from faker import Faker
-from faker.providers import company
+from apps.util import fake
 from requests.exceptions import Timeout
 
-fake = Faker("zh_CN")
-fake.add_provider(company)
 bp = APIBlueprint("目标信息及状态接口集合", __name__, url_prefix="/target")
 
 icmp_delaytable = {}
