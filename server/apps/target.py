@@ -50,7 +50,7 @@ class DelayOut(Schema):
 
 
 @bp.get("/delay/<string:type>")
-@bp.doc("获取每个节点的时延数据", "type参数为{icmp,dns,tcp}中的一个")
+@bp.doc("获取每个节点的时延数据", "type参数为{icmp,dns,tcp}中的一个", hide=True)
 @bp.input({"ip": IP(required=False)}, location="query")
 @bp.output(DelayOut)
 def get_pernode_delay(query_data, type):
@@ -157,7 +157,7 @@ from dns import resolver
 
 
 @bp.get("/check")
-@bp.doc("通过指定的解析器获取指定域名的A/AAAA记录")
+@bp.doc("通过指定的解析器获取指定域名的A/AAAA记录", hide=True)
 @bp.input({
     'rev': String(required=True),
     'domain': String(required=True),
@@ -202,27 +202,43 @@ def record(query_data):
 @bp.doc("目标信息获取接口", "返回目标信息")
 @bp.input({
     "per_page": Integer(load_default=10),
-    "page": Integer(load_default=1)
+    "page": Integer(load_default=1),
+    "ip": IP(load_default=None)
 }, location='query')
 @bp.output({
     "data": List(Nested(Target()))
 })
 def target_info(query_data):
-    per_page = query_data["per_page"]
-    target_list = []
+    # 普通检索
+    if query_data["ip"] is None:
+        per_page = query_data["per_page"]
+        target_list = []
 
-    for _ in range(per_page):
+        for _ in range(per_page):
+            lat, lng, _, cou, _ = fake.location_on_land()
+            target_list.append({
+                "ipv4": fake.ipv4_public(),
+                "ipv6": fake.ipv6(),
+                "protocol": random.choices(["IPv6", "DNSSEC", "DoH", "DoT"], k=random.randint(1, 4)),
+                "protect": random.choices(["0x20", "端口随机化", "请求最小化", "DNSSEC验证"], k=random.randint(1, 4)),
+                "cou": cou,
+                "lat": lat,
+                "lng": lng,
+                "isp": fake.company(),
+                "time": fake.date_time_between('-2y'),
+            })
+        return {"data": target_list}
+    # 查询目标
+    else:
         lat, lng, _, cou, _ = fake.location_on_land()
-        target_list.append({
-            "ipv4": fake.ipv4_public(),
-            "ipv6": fake.ipv6(),
-            "protocol": random.choices(["IPv6", "DNSSEC", "DoH", "DoT"], k=random.randint(1, 4)),
-            "protect": random.choices(["0x20", "端口随机化", "请求最小化", "DNSSEC验证"], k=random.randint(1, 4)),
-            "cou": cou,
-            "lat": lat,
-            "lng": lng,
-            "isp": fake.company(),
-            "time": fake.date_time_between('-2y'),
-        })
-
-    return {"data": target_list}
+        target = [{"ipv4": query_data["ip"],
+                   "ipv6": fake.ipv6(),
+                   "protocol": random.choices(["IPv6", "DNSSEC", "DoH", "DoT"], k=random.randint(1, 4)),
+                   "protect": random.choices(["0x20", "端口随机化", "请求最小化", "DNSSEC验证"],
+                                             k=random.randint(1, 4)),
+                   "cou": cou,
+                   "lat": lat,
+                   "lng": lng,
+                   "isp": fake.company(),
+                   "time": fake.date_time_between('-2y'), }]
+        return {"data": target}
