@@ -43,11 +43,21 @@ def deliver_task():
     pass
 
 
-# 代理输出接收
+
 @bp.post("/res")
 @bp.doc("代理输出消息接收接口", hide=True)
 # TODO:代理输出接收接口实现
-def task_ret():
+def task_ret(json_data):
+    """
+    task_ret 代理输出信息接收
+
+    Arguments:
+        json_data -- 请求中的json内容，必须包含"level"和"info"两个keyword
+
+    Returns:
+        _type_ -- _description_
+    """
+    print(json_data)
     return "ok"
 
 
