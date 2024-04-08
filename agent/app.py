@@ -4,7 +4,7 @@ import os.path
 import platform
 import socket
 
-import geocoder
+import ipinfo
 import psutil
 import requests
 import yaml
@@ -38,21 +38,26 @@ def nodeinfo():
             v6addr.append(a[4][0])
 
     # 经纬度
-    g = geocoder.ip('me')
-    lat, lng = g.lat, g.lng
+    # 使用ipinfo.io进行定位，调用token
+    token = "40e1b13cf6b35a"
+    handler = ipinfo.getHandler(token)
+    details = handler.getDetails()
+    # 获取经纬度
+    latlng = str(details.loc).split(",")
+    lat, lng = latlng[0], latlng[1]
 
     # CPU核心数
     cpu_num = psutil.cpu_count()
 
     # 内存信息
-    ram_size = psutil.virtual_memory().total
+    ram_size = int(psutil.virtual_memory().total / (1024 * 1024 * 1024))
     ram_per = psutil.virtual_memory().percent
 
     # 操作系统
     system = platform.system()
     #
     return {'v6addr': v6addr, 'lat': lat, 'lng': lng, 'cpu_num': cpu_num, 'ram_size': ram_size, 'ram_per': ram_per,
-            'system': system}
+            'sys': system}
 
 
 # 注册代理
@@ -60,8 +65,10 @@ def registernode(proto="http", port=2525, atype="stgj", server="127.0.0.1:8888")
     info = nodeinfo()
     info["port"] = port
     info["type"] = atype
-    r = requests.post(proto + "://" + server, json=info)
+    print(info)
+    r = requests.post(proto + "://" + server + "/agent/register", json=info)
     if r.status_code != 200:
+        print(r.status_code)
         print("注册失败，请检查参数配置是否正确")
         return
     return r.json()['id']
@@ -73,7 +80,7 @@ if __name__ == '__main__':
         # 存在则读取配置文件信息
         with open("config.yaml", "r") as f:
             config = yaml.safe_load(f)
-            app.run(host="0.0.0.0", port=config["port"], debug=True)
+        app.run(host="0.0.0.0", port=config["port"], debug=True)
     else:
         # 不存在则解析命令行参数
         # 命令行参数设置
