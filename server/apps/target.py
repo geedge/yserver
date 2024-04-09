@@ -7,8 +7,9 @@ import pandas as pd
 import requests
 from apiflask import APIBlueprint, Schema
 from apiflask.fields import Integer, String, List, Nested, IP, DateTime
-from apps.util import fake
 from requests.exceptions import Timeout
+
+from apps.util import fake
 
 bp = APIBlueprint("目标信息及状态接口集合", __name__, url_prefix="/target")
 
@@ -46,7 +47,7 @@ class Delay(Schema):
 
 
 class DelayOut(Schema):
-    delay_data = List(Nested(Delay))
+    delay_data = List(Nested(Delay()))
 
 
 @bp.get("/delay/<string:type>")
@@ -54,6 +55,7 @@ class DelayOut(Schema):
 @bp.input({"ip": IP(required=False)}, location="query")
 @bp.output(DelayOut)
 def get_pernode_delay(query_data, type):
+    # TODO:节点选择
     addr = ""
     if 'ip' in query_data.keys():
         addr = query_data['ip']
@@ -209,6 +211,7 @@ def record(query_data):
     "data": List(Nested(Target()))
 })
 def target_info(query_data):
+    # TODO：具体实现
     # 普通检索
     if query_data["ip"] is None:
         per_page = query_data["per_page"]

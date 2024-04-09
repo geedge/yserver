@@ -1,5 +1,4 @@
 # 代理通信与注册接口
-import datetime
 import random
 
 from apiflask import APIBlueprint, Schema
@@ -7,6 +6,7 @@ from apiflask.fields import String, Integer, List, Nested, Boolean, DateTime
 from apiflask.validators import OneOf
 from flask import request
 
+from settings import *
 from util import da
 
 bp = APIBlueprint("代理管理接口集合", __name__, url_prefix="/agent")
@@ -87,25 +87,35 @@ def register_agent():
 
 
 # 代理任务下发
-def deliver_task():
+def deliver_task(agent_id, policy, policy_param):
+    # TODO:具体实现
+    # 查询agent_id对应代理的ip和端口信息
+    # 将policy和policy_param作为参数传递到对应接口
     pass
 
 
 @bp.post("/res")
 @bp.doc("代理输出消息接收接口", hide=True)
-# TODO:代理输出接收接口实现
 def task_ret(json_data):
     """
     task_ret 代理输出信息接收
 
     Arguments:
-        json_data -- 请求中的json内容，必须包含"level"和"info"两个keyword
+        json_data -- 请求中的json内容，必须包含"id"、"taskpolicy"、"level"和"info"两个keyword
 
     Returns:
-        _type_ -- _description_
+        "ok" -- 成功执行
     """
-    print(json_data)
-    return "ok"
+    sql = """INSERT INTO %s(CREATED_BY_AGENT,TLOG_LEVEL,TLOG_INFO,TLOG_TP)
+    VALUES(%s,%s,%s,%s)
+    """ % (MYSQL_TAB_TASK_LOG, json_data["id"], json_data["level"], json_data["info"],
+           json_data["taskpolicy"])
+    try:
+        da.cursor.execute(sql)
+        da.conn.commit()
+        return "ok"
+    except Exception as e:
+        print(e)
 
 
 @bp.get("/")
@@ -128,7 +138,7 @@ def agent_info(query_data):
 
 
 # 代理信息存储到数据库
-def insert_agent(param={}):
+def insert_agent(param: dict):
     sql = """REPLACE INTO %s(AGENT_ID,ADDRv4,
             ADDRv6,
             CREATED_TIME,

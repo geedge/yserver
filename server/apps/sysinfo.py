@@ -38,7 +38,6 @@ class LogOut(Schema):
     "target": Nested(TargetOut())
 })
 def systate():
-    # TODO:从数据库读取信息并统计
     # 已部署代理节点数量
     agent_num = da.count_data("agent")
     # 已执行任务数量（包括执行完毕和正在执行）

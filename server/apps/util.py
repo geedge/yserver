@@ -43,7 +43,7 @@ class DataHandler:
         agentsql = """CREATE TABLE IF NOT EXISTS %s (
             `AGENT_ID` varchar(255) NOT NULL PRIMARY KEY,
             `IPADDR` varchar(255),,
-            `START_TIME` datetime,
+            `START_TIME` datetime DEFAULT CURRENT_TIMESTAMP,
             `LAT` varchar(255),
             `LNG` varchar(255),
             `AGENT_TYPE` varchar(255),
@@ -67,7 +67,7 @@ class DataHandler:
             `LOG_ID` int NOT NULL AUTO_INCREMENT PRIMARY KEY,
             `LOG_LEVEL` varchar(255),  
             `LOG_INFO` varchar(255),
-            `LOG_TIME` datetime,
+            `LOG_TIME` datetime DEFAULT CURRENT_TIMESTAMP,
             `S_IP` varchar(255),
             `USER_ID` varchar(255))ENGINE=innodb DEFAULT CHARSET=utf8;  """ % MYSQL_TAB_SYSLOG
 
@@ -83,7 +83,7 @@ class DataHandler:
         `ISP` varchar(255),
         `LAT` varchar(255),
         `LNG` varchar(255),
-        `UPDATED_TIME` datetime,
+        `UPDATED_TIME` datetime DEFAULT CURRENT_TIMESTAMP,
         `PROTECT` varchar(255),
         `DOH_DOMAIN` varchar(255))ENGINE=innodb DEFAULT CHARSET=utf8; """ % MYSQL_TAB_TARGETDATA
 
@@ -93,7 +93,7 @@ class DataHandler:
         `AGENT_ID` varchar(255),
         `CREATED_BY` varchar(255),
         `TARGET_IP` varchar(255),
-        `CREATED_TIME` datetime,
+        `CREATED_TIME` datetime DEFAULT CURRENT_TIMESTAMP,
         `POLICY` varchar(255),
         `STATUS` varchar(255),
         `POLICY_DELAY` varchar(255),
@@ -106,14 +106,14 @@ class DataHandler:
         tasklogsql = """CREATE TABLE IF NOT EXISTS %s(
             `TLOG_ID` int NOT NULL AUTO_INCREMENT PRIMARY KEY,
         `CREATED_BY_AGENT` varchar(255),
-        `CREATED_TIME` datetime,
+        `CREATED_TIME` datetime DEFAULT CURRENT_TIMESTAMP,
         `TLOG_LEVEL` varchar(255),
         `TLOG_INFO` varchar(255),
         `TLOG_TP` varchar(255))ENGINE=innodb DEFAULT CHARSET=utf8;""" % MYSQL_TAB_TASK_LOG
 
         taskpolicysql = """CREATE TABLE IF NOT EXISTS %s(
             `TP_ID` int NOT NULL AUTO_INCREMENT PRIMARY KEY,
-        `TP_TIME` datetime,
+        `TP_TIME` datetime DEFAULT CURRENT_TIMESTAMP,
         `POLICY` varchar(255),
         `POLICY_PARAM` varchar(255),
         `FOR_TASK` varchar(255)) ENGINE=innodb DEFAULT CHARSET=utf8;""" % MYSQL_TAB_TASKPOLICY
@@ -122,7 +122,7 @@ class DataHandler:
             `USER_ID` varchar(255) NOT NULL PRIMARY KEY,
         `USER_NAME` varchar(255),
         `CREATED_BY` varchar(255),
-        `CREATED_TIME` datetime,
+        `CREATED_TIME` datetime DEFAULT CURRENT_TIMESTAMP,
         `USER_PWD_HASH` varchar(255),
         `USER_GROUP` varchar(255)) ENGINE=innodb DEFAULT CHARSET=utf8;""" % MYSQL_TAB_USER
 
