@@ -1,12 +1,14 @@
 # 系统信息接口
 import datetime
 
-# 测试用
-from apps.util import fake
-
 from apiflask import APIBlueprint, Schema
 from apiflask.fields import Date, Integer, Nested, Dict, DateTime, String, List
 from apiflask.validators import OneOf
+
+# 测试用
+from apps.util import fake
+from settings import START_DAY
+from util import da
 
 bp = APIBlueprint("仪表盘接口", __name__, url_prefix="/sys")
 
@@ -38,16 +40,16 @@ class LogOut(Schema):
 def systate():
     # TODO:从数据库读取信息并统计
     # 已部署代理节点数量
-    agent_num = fake.random.randint(10, 100)
+    agent_num = da.count_data("agent")
     # 已执行任务数量（包括执行完毕和正在执行）
-    task_num = fake.random.randint(10, 100)
+    task_num = da.count_data("task")
     # 系统已运行天数
-    workday = fake.random.randint(10, 100)
+    workday = datetime.date.today() - START_DAY
     # 已探测目标统计
-    v6dns_num = fake.random.randint(10, 100)
-    dnssec_num = fake.random.randint(10, 100)
-    doh_num = fake.random.randint(10, 100)
-    dot_num = fake.random.randint(10, 100)
+    v6dns_num = da.count_data("target", {"IPv6": True})
+    dnssec_num = da.count_data("target", {"DNSSEC": True})
+    doh_num = da.count_data("target", {"DOH": True})
+    dot_num = da.count_data("target", {"DOT": True})
     # 返回结果
     return {
         "agent_num": agent_num,
@@ -73,12 +75,11 @@ def target_date():
     day = 1
     while day < 8:
         d = today - datetime.timedelta(day)
-        # TODO:从数据库读取并统计
         dates[d] = {
-            "v6dns": fake.random.randint(10, 20) * day,
-            "dnssec": fake.random.randint(10, 20) * day,
-            "doh": fake.random.randint(10, 20) * day,
-            "dot": fake.random.randint(10, 20) * day
+            "v6dns": da.count_data_by_time("target", time=d, search={"IPv6": True}),
+            "dnssec": da.count_data_by_time("target", time=d, search={"DNSSEC": True}),
+            "doh": da.count_data_by_time("target", time=d, search={"DOH": True}),
+            "dot": da.count_data_by_time("target", time=d, search={"DOT": True})
         }
         day += 1
     return {"date_data": dates}

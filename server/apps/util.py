@@ -18,7 +18,16 @@ class DataHandler:
     tabmapping = {
         "agent": MYSQL_TAB_AGENT,
         "task": MYSQL_TAB_TASK,
-        "user": MYSQL_TAB_USER}
+        "user": MYSQL_TAB_USER,
+        "target": MYSQL_TAB_TARGETDATA}
+
+    # 参数与数据表中时间字段的映射关系
+    timemapping = {
+        "agent": "START_TIME",
+        "task": "CREATED_TIME",
+        "user": "CREATED_TIME",
+        "target": "UPDATED_TIME",
+    }
 
     # 数据库链接及数据库初始化
     def __init__(self):
@@ -192,6 +201,30 @@ class DataHandler:
             sql = """SELECT * FROM %s WHERE %s=%s LIMIT %s, %s""" % (tabname, key, value, offset, limit)
             self.cursor.execute(sql)
             return self.cursor.fetchall()
+
+    # 统计符合条件的信息数量
+    def count_data(self, data_type="agent", search=None):
+        # 参数映射到表名
+        tabname = self.tabmapping[data_type]
+        if search is None:
+            sql = """SELECT count(*) FROM %s""" % (tabname)
+            self.cursor.execute(sql)
+            return dict(self.cursor.fetchall()[0]).popitem()[1]
+        else:
+            search = dict(search)
+            key, value = search.popitem()
+            sql = """SELECT count(*) FROM %s WHERE %s=%s""" % (tabname, key, value)
+            self.cursor.execute(sql)
+            return dict(self.cursor.fetchall()[0]).popitem()[1]
+
+    def count_data_by_time(self, data_type="agent", time=None, search=None):
+        tabname = self.tabmapping[data_type]
+        timename = self.timemapping[data_type]
+        key, value = search.popitem()
+        sql = """SELECT COUNT(*) FROM %s WHERE
+         DATE_FORMAT(%s,'%Y-%m-%d')=%s AND %s=%s""" % (tabname, timename, time, key, value)
+        self.cursor.execute(sql)
+        return dict(self.cursor.fetchall()[0]).popitem()[1]
 
 
 da = DataHandler()

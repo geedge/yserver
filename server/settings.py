@@ -1,5 +1,8 @@
+import datetime
+
 DEBUG = True
 SERVER_PORT = 12526
+START_DAY = datetime.date.today()
 
 # 数据库配置
 MYSQL_HOST = '127.0.0.1'
