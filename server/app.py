@@ -1,7 +1,6 @@
-import argparse
-
 from apiflask import APIFlask
 
+import settings
 from apps.agentcomm import bp as agentbp
 from apps.sysinfo import bp as sysbp
 from apps.sysmange import bp as mangbp
@@ -29,7 +28,4 @@ def hello():
 
 
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser()
-    parser.add_argument("-p", "--port", type=int, default=2525, help="主控服务的开放通信端口")
-    args = parser.parse_args()
-    app.run(host="0.0.0.0", debug=True, port=args.port)
+    app.run(host="0.0.0.0", debug=settings.DEBUG, port=settings.SERVER_PORT)

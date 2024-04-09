@@ -1,11 +1,13 @@
 # 代理通信与注册接口
+import datetime
 import random
 
 from apiflask import APIBlueprint, Schema
 from apiflask.fields import String, Integer, List, Nested, Boolean, DateTime
 from apiflask.validators import OneOf
-from apps.util import fake
+from flask import request
 
+from util import da
 
 bp = APIBlueprint("代理管理接口集合", __name__, url_prefix="/agent")
 
@@ -23,25 +25,70 @@ class agent(Schema):
     start_time = DateTime()
 
 
+# 数据库列与返回值的键对应关系
+agent_map = {
+    "AGENT_ID": "id",
+    "IPADDR": "ipaddr",
+    "START_TIME": "start_time",
+    "LAT": "lat",
+    "LNG": "lng",
+    "AGENT_TYPE": "atype",
+    "SYS": "sys",
+    "PORT": "port",
+    "CPU_NUM": "cpu_num",
+    "STATUS": "status",
+    "IDLE": "idle",
+    "MEM": "mem"
+}
+
+
 # 代理注册接口
-@bp.post("/register", )
+@bp.post("/register")
 @bp.doc("代理注册接口", "返回分配给代理的编号值", hide=True)
-@bp.input({
-    # 代理类型
-    "type": String(required=True, validate=OneOf(["gjst", "mbgz", "ztgz"])),
-    # 代理的通信端口
-    "port": Integer(required=True),
-    # 代理所在的操作系统
-    "sys": String()
-})
-def register_agent(query_data):
-    print(query_data)
+# 参数说明
+# 代理类型
+# "type": String(required=True, validate=OneOf(["stgj", "mbgz", "ztgz"])),
+# 代理的通信端口
+# "port": Integer(required=True),
+# # 代理所在的操作系统
+# "sys": String(),
+# # IPv6地址
+# # "v6addr": List(String()),
+# # 经度
+# "lat": String(),
+# # 纬度
+# "lng": String(),
+# # cpu核心数
+# "cpu_num": Integer(),
+# # 内存大小
+# "ram_size": Integer(),
+# # 已用内存比例
+# "ram_per": Float()
+def register_agent():
+    data = dict(request.json)
+    id = "".join(random.sample('1234567890zyxwvutsrqponmlkjihgfedcba', 8))
+    # 代理所有参数
+    param = {"id": id,
+             "ipaddr": (request.remote_addr).join(("|" + i) for i in data["v6addr"]),
+             "start_time": str(datetime.datetime.now()),
+             "lat": data["lat"],
+             "lng": data["lng"],
+             "cpunum": data["cpu_num"],
+             "mem": data["ram_size"] + "GB" + "(" + {1 - data["ram_per"]} + "%" + "可用)",
+             "sys": data["sys"],
+             "status": True,
+             "idle": True,
+             "port": data["port"],
+             "atype": data["atype"],
+             }
+    err = insert_agent(param)
+    if not err:
+        return {"id": id}
 
 
 # 代理任务下发
 def deliver_task():
     pass
-
 
 
 @bp.post("/res")
@@ -74,19 +121,40 @@ def agent_info(query_data):
     per_page = query_data["per_page"]
     page = query_data["page"]
     agent_list = []
-    # TODO:接口数据库贯通实现
-    for i in range(per_page):
-        agent_list.append({
-            "id": fake.unique.random_int(),
-            "ipaddr": [fake.ipv4_public(), fake.ipv6()],
-            "atype": fake.word(ext_word_list=["参数感知", "状态感知", "攻击渗透"]),
-            "status": random.choice([True, False]),
-            "idle": random.choice([True, False]),
-            "port": random.randint(1000, 65534),
-            "sys": random.choice(["Linux", "Windows", "Macos"]),
-            "cpu_num": 4,
-            "mem": random.choice(["4", "8", "16", "32"]) + "GB(" + str(
-                '{:.2f}'.format(100 * random.random())) + "%可用)",
-            "start_time": fake.date_time_between(start_date="-1y")})
-
+    res = da.get_data(data_type="agent", offset=(page - 1) * per_page, limit=per_page)
+    for r in res:
+        agent_list.append({agent_map[key]: value for key, value in r.items()})
     return {"agent_data": agent_list}
+
+
+# 代理信息存储到数据库
+def insert_agent(param={}):
+    sql = """REPLACE INTO %s(AGENT_ID,ADDRv4,
+            ADDRv6,
+            CREATED_TIME,
+            LAT,
+            LNG ,
+            AGENT_TYPE,
+            SYS ,
+            PORT ,
+            CPU_NUM ,
+            STATUS ,
+            RAM_SIZE ,
+            WORK_STATUS) VALUES(
+                %(id)s,
+                %(v4addr)s,
+                %(v6addr)s,
+                %(create_time)s,
+                %(lat)s,
+                %(lng)s,
+                %(atype)s,
+                %(sys)s,
+                %(port)s,
+                %(cpunum)s,
+                %(status)s,
+                %(mem)s,
+                %(work_status)s)
+            )""" % param
+    da.cursor.execute(sql)
+    da.conn.commit()
+    return None
