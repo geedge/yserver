@@ -17,6 +17,12 @@ app = APIFlask(__name__, template_folder='./static/templates')
 app.register_blueprint(scriptbp)
 # 代理配置
 config = {}
+# 代理类型参数映射表
+atype_map = {
+    "stgj": "渗透攻击",
+    "csgz": "参数感知",
+    "ztgz": "状态感知"
+}
 
 
 @app.get('/')
@@ -64,7 +70,7 @@ def nodeinfo():
 def registernode(proto="http", port=2525, atype="stgj", server="127.0.0.1:8888"):
     info = nodeinfo()
     info["port"] = port
-    info["atype"] = atype
+    info["atype"] = atype_map[atype]
     print(info)
     r = requests.post(proto + "://" + server + "/agent/register", json=info)
     if r.status_code != 200:
@@ -87,7 +93,7 @@ if __name__ == '__main__':
         parser = argparse.ArgumentParser()
         parser.add_argument("-p", "--port", type=int, default=2525, help="代理的开放通信端口")
         parser.add_argument("-t", "--atype", type=str, default="stgj",
-                            help="代理的工作类型 {stgj(渗透攻击) / mbgz(目标感知) / ztgz(状态感知)}")
+                            help="代理的工作类型 {stgj(渗透攻击) / csgz(参数感知) / ztgz(状态感知)}")
         parser.add_argument("-s", "--server", type=str, default="127.0.0.1:8888", help="主控端访问地址+端口号")
 
         # 解析参数
