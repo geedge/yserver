@@ -19,7 +19,8 @@ class DataHandler:
         "agent": MYSQL_TAB_AGENT,
         "task": MYSQL_TAB_TASK,
         "user": MYSQL_TAB_USER,
-        "target": MYSQL_TAB_TARGETDATA}
+        "target": MYSQL_TAB_TARGETDATA,
+        "syslog": MYSQL_TAB_SYSLOG, }
 
     # 参数与数据表中时间字段的映射关系
     timemapping = {

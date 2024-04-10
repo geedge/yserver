@@ -1,16 +1,21 @@
 # 系统信息接口
-import datetime
 
 from apiflask import APIBlueprint, Schema
 from apiflask.fields import Date, Integer, Nested, Dict, DateTime, String, List
 from apiflask.validators import OneOf
 
 # 测试用
-from apps.util import fake
-from settings import START_DAY
+from settings import *
 from util import da
 
 bp = APIBlueprint("仪表盘接口", __name__, url_prefix="/sys")
+
+log_map = {
+    "LOG_LEVEL": "level",
+    "LOG_INFO": "info",
+    "LOG_TIME": "time",
+    "S_IP": "ip",
+}
 
 
 class TargetOut(Schema):
@@ -84,6 +89,7 @@ def target_date():
     return {"date_data": dates}
 
 
+# 系统操作日志获取接口
 @bp.get("/log")
 @bp.input({
     "per_page": Integer(load_default=10),
@@ -98,14 +104,19 @@ def sys_log(query_data):
     per_page = query_data["per_page"]
     # 页数
     page = query_data["page"]
-    log_list = []
-    # TODO:具体实现
-    for i in range(per_page):
-        log_list.append({
-            "time": fake.date_time_between(start_date="-1y"),
-            "level": fake.word(ext_word_list=["INFO", "WARNING", "ERROR"]),
-            "info": fake.text(max_nb_chars=20, ext_word_list=None),
-            "user": fake.name(),
-            "ip": fake.ipv4()
-        })
+    tabs = {
+        "syslog": MYSQL_TAB_SYSLOG,
+        "user": MYSQL_TAB_USER,
+        "start": (page - 1) * per_page,
+        "stop": per_page
+    }
+    sql = """SELECT 
+        s.LOG_LEVEL as level,
+        s.LOG_INFO as info, 
+        s.LOG_TIME as time,
+        s.S_IP as ip,
+        CONCAT(u.USER_NAME,"(ID:",u.USER_ID,")") as user
+    from %(syslog)s s,%(user)s u WHERE s.USER_ID=u.USER_ID LIMIT %(start)s,%(stop)s  """ % tabs
+    da.cursor.execute(sql)
+    log_list = da.cursor.fetchall()
     return {"log_data": log_list}
