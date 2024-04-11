@@ -3,7 +3,21 @@ import pymysql
 from faker import Faker
 from faker.providers import company
 from faker.providers import date_time
+from loguru import logger
 from pymysql.cursors import DictCursor
+
+
+def debug(message, *args, **kwargs):
+    logger.debug(message, *args, **kwargs)
+
+
+def info(message, *args, **kwargs):
+    logger.info(message, *args, **kwargs)
+
+
+def error(message, *args, **kwargs):
+    logger.error(message, *args, **kwargs)
+
 
 from settings import *
 
@@ -32,6 +46,7 @@ class DataHandler:
 
     # 数据库链接及数据库初始化
     def __init__(self):
+
         # mysql连接,采用字典游标，返回一系列字典值
         self.conn = pymysql.connect(cursorclass=DictCursor, host=MYSQL_HOST, user='root',
                                     password=MYSQL_PAWD, port=MYSQL_PORT)
