@@ -58,7 +58,7 @@ class DataHandler:
 
         agentsql = """CREATE TABLE IF NOT EXISTS %s (
             `AGENT_ID` varchar(255) NOT NULL PRIMARY KEY,
-            `IPADDR` varchar(255),,
+            `IPADDR` varchar(255),
             `START_TIME` datetime DEFAULT CURRENT_TIMESTAMP,
             `LAT` varchar(255),
             `LNG` varchar(255),
@@ -71,7 +71,7 @@ class DataHandler:
             `IDLE` bool)ENGINE=innodb DEFAULT CHARSET=utf8; """ % MYSQL_TAB_AGENT
 
         policysql = """CREATE TABLE IF NOT EXISTS %s(
-            `P_ID` int NOT NULL AUTO_INCREMENT PRIMARY KEY,
+            `P_ID` varchar(255) NOT NULL PRIMARY KEY,
             `P_EXE` varchar(255),
             `P_TYPE` varchar(255),
             `P_DESC` varchar(255),
@@ -85,7 +85,9 @@ class DataHandler:
             `LOG_INFO` varchar(255),
             `LOG_TIME` datetime DEFAULT CURRENT_TIMESTAMP,
             `S_IP` varchar(255),
-            `USER_ID` varchar(255))ENGINE=innodb DEFAULT CHARSET=utf8;  """ % MYSQL_TAB_SYSLOG
+            `USER_ID` varchar(255),
+            FOREIGN KEY(`USER_ID`) REFERENCES %s(`USER_ID`)
+            )ENGINE=innodb DEFAULT CHARSET=utf8;  """ % (MYSQL_TAB_SYSLOG, MYSQL_TAB_USER)
 
         targetsql = """CREATE TABLE IF NOT EXISTS %s(
             `TARGET_ID` varchar(255) NOT NULL PRIMARY KEY,
@@ -110,14 +112,18 @@ class DataHandler:
         `CREATED_BY` varchar(255),
         `TARGET_IP` varchar(255),
         `CREATED_TIME` datetime DEFAULT CURRENT_TIMESTAMP,
-        `POLICY` varchar(255),
+        `POLICY` int,
         `STATUS` varchar(255),
         `POLICY_DELAY` varchar(255),
         `TASK_DELAY` varchar(255),
         `TARGET_SCAN` varchar(255),
         `TARGET_DOMAIN` varchar(255),
         `TARGET_RTYPE` varchar(255),
-        `TARGET_RR` varchar(255))ENGINE=innodb DEFAULT CHARSET=utf8; """ % MYSQL_TAB_TASK
+        `TARGET_RR` varchar(255),
+        FOREIGN KEY(`AGENT_ID`) REFERENCES %s(`AGENT_ID`),
+        FOREIGN KEY(`CREATED_BY`) REFERENCES %s(`USER_ID`)
+        )ENGINE=innodb DEFAULT CHARSET=utf8; """ % (
+            MYSQL_TAB_TASK, MYSQL_TAB_AGENT, MYSQL_TAB_USER)
 
         tasklogsql = """CREATE TABLE IF NOT EXISTS %s(
             `TLOG_ID` int NOT NULL AUTO_INCREMENT PRIMARY KEY,
@@ -125,14 +131,20 @@ class DataHandler:
         `CREATED_TIME` datetime DEFAULT CURRENT_TIMESTAMP,
         `TLOG_LEVEL` varchar(255),
         `TLOG_INFO` varchar(255),
-        `TLOG_TP` varchar(255))ENGINE=innodb DEFAULT CHARSET=utf8;""" % MYSQL_TAB_TASK_LOG
+        `TLOG_TP` int,
+        FOREIGN KEY(`CREATED_BY_AGENT`) REFERENCES %s(`AGENT_ID`),
+        FOREIGN KEY(`TLOG_TP`) REFERENCES %s(`TP_ID`)
+        )ENGINE=innodb DEFAULT CHARSET=utf8;""" % (MYSQL_TAB_TASK_LOG, MYSQL_TAB_AGENT, MYSQL_TAB_TASKPOLICY)
 
         taskpolicysql = """CREATE TABLE IF NOT EXISTS %s(
             `TP_ID` int NOT NULL AUTO_INCREMENT PRIMARY KEY,
         `TP_TIME` datetime DEFAULT CURRENT_TIMESTAMP,
         `POLICY` varchar(255),
         `POLICY_PARAM` varchar(255),
-        `FOR_TASK` varchar(255)) ENGINE=innodb DEFAULT CHARSET=utf8;""" % MYSQL_TAB_TASKPOLICY
+        `FOR_TASK` varchar(255),
+        FOREIGN KEY(`POLICY`) REFERENCES %s(`P_ID`),
+        FOREIGN KEY(`FOR_TASK`) REFERENCES %s(`TASK_ID`)
+        ) ENGINE=innodb DEFAULT CHARSET=utf8;""" % (MYSQL_TAB_TASKPOLICY, MYSQL_TAB_POLICY, MYSQL_TAB_TASK)
 
         usersql = """CREATE TABLE IF NOT EXISTS %s(
             `USER_ID` varchar(255) NOT NULL PRIMARY KEY,
@@ -142,33 +154,51 @@ class DataHandler:
         `USER_PWD_HASH` varchar(255),
         `USER_GROUP` varchar(255)) ENGINE=innodb DEFAULT CHARSET=utf8;""" % MYSQL_TAB_USER
 
-        # 外键
-        fkey1 = """ALTER TABLE %s ADD CONSTRAINT `fk_SYSLOG_USER_1`
-        FOREIGN KEY(`USER_ID`) REFERENCES %s(`USER_ID`);""" % (MYSQL_TAB_SYSLOG, MYSQL_TAB_USER)
+        # 外键，考虑重复外键的处理
+        # fkey1 = """
+        # ALTER TABLE %s DROP FOREIGN KEY IF EXISTS `fk_SYSLOG_USER_1`;
+        # ALTER TABLE %s ADD CONSTRAINT `fk_SYSLOG_USER_1`
+        # FOREIGN KEY(`USER_ID`) REFERENCES %s(`USER_ID`);""" % (MYSQL_TAB_SYSLOG, MYSQL_TAB_SYSLOG, MYSQL_TAB_USER)
 
-        fkey2 = """ALTER TABLE %s ADD CONSTRAINT `fk_TASK_AGENT_1`
-        FOREIGN KEY(`AGENT_ID`) REFERENCES %s(`AGENT_ID`);""" % (MYSQL_TAB_TASK, MYSQL_TAB_AGENT)
+        # fkey2 = """
+        # ALTER TABLE %s DROP FOREIGN KEY IF EXISTS `fk_TASK_AGENT_1`;
+        # ALTER TABLE %s ADD CONSTRAINT `fk_TASK_AGENT_1`
+        # FOREIGN KEY(`AGENT_ID`) REFERENCES %s(`AGENT_ID`);""" % (MYSQL_TAB_TASK, MYSQL_TAB_TASK, MYSQL_TAB_AGENT)
 
-        fkey3 = """ALTER TABLE %s ADD CONSTRAINT `fk_TASK_USER_1`
-        FOREIGN KEY(`CREATED_BY`) REFERENCES %s(`USER_ID`);""" % (MYSQL_TAB_TASK, MYSQL_TAB_USER)
+        # fkey3 = """
+        # ALTER TABLE %s DROP FOREIGN KEY IF EXISTS `fk_TASK_USER_1`;
+        # ALTER TABLE %s ADD CONSTRAINT `fk_TASK_USER_1`
+        # FOREIGN KEY(`CREATED_BY`) REFERENCES %s(`USER_ID`);""" % (MYSQL_TAB_TASK, MYSQL_TAB_TASK, MYSQL_TAB_USER)
 
-        fkey4 = """ALTER TABLE %s ADD CONSTRAINT `fk_TASK_TASK_POLICY_1`
-        FOREIGN KEY(`POLICY`) REFERENCES %s(`TP_ID`);""" % (MYSQL_TAB_TASK, MYSQL_TAB_TASKPOLICY)
+        # 和task_policysql存在双向外键引用的问题，需要额外定义
+        fkey = """
+        ALTER TABLE %s ADD CONSTRAINT `fk_TASK_TASK_POLICY_1`
+        FOREIGN KEY(`POLICY`) REFERENCES %s(`TP_ID`)""" % (
+            MYSQL_TAB_TASK, MYSQL_TAB_TASKPOLICY)
 
-        fkey5 = """ALTER TABLE %s ADD CONSTRAINT `fk_TASK_LOG_AGENT_1`
-                FOREIGN KEY(`CREATED_BY_AGENT`) REFERENCES %s(`AGENT_ID`);""" % (MYSQL_TAB_TASK_LOG, MYSQL_TAB_AGENT)
+        # fkey5 = """
+        # ALTER TABLE %s DROP FOREIGN KEY IF EXISTS `fk_TASK_LOG_AGENT_1`;
+        # ALTER TABLE %s ADD CONSTRAINT `fk_TASK_LOG_AGENT_1`
+        # FOREIGN KEY(`CREATED_BY_AGENT`) REFERENCES %s(`AGENT_ID`);""" % (
+        #     MYSQL_TAB_TASK_LOG, MYSQL_TAB_TASK_LOG, MYSQL_TAB_AGENT)
 
-        fkey6 = """ALTER TABLE %s ADD CONSTRAINT `fk_TASK_LOG_TASK_POLICY_1`
-                        FOREIGN KEY(`TLOG_TP`) REFERENCES %s(`TP_ID`);""" % (
-            MYSQL_TAB_TASK_LOG, MYSQL_TAB_TASKPOLICY)
+        # fkey6 = """
+        # ALTER TABLE %s DROP FOREIGN KEY IF EXISTS `fk_TASK_LOG_TASK_POLICY_1`;
+        # ALTER TABLE %s ADD CONSTRAINT `fk_TASK_LOG_TASK_POLICY_1`
+        #                 FOREIGN KEY(`TLOG_TP`) REFERENCES %s(`TP_ID`);""" % (
+        #     MYSQL_TAB_TASK_LOG, MYSQL_TAB_TASK_LOG, MYSQL_TAB_TASKPOLICY)
 
-        fkey7 = """ALTER TABLE %s ADD CONSTRAINT `fk_TASK_POLICY_POLICY_1`
-                                FOREIGN KEY(`POLICY`) REFERENCES %s(`P_ID`);""" % (
-            MYSQL_TAB_TASKPOLICY, MYSQL_TAB_POLICY)
+        # fkey7 = """
+        # ALTER TABLE %s DROP FOREIGN KEY IF EXISTS `fk_TASK_POLICY_POLICY_1`;
+        # ALTER TABLE %s ADD CONSTRAINT `fk_TASK_POLICY_POLICY_1`
+        # FOREIGN KEY(`POLICY`) REFERENCES %s(`P_ID`);""" % (
+        #     MYSQL_TAB_TASKPOLICY, MYSQL_TAB_TASKPOLICY, MYSQL_TAB_POLICY)
 
-        fkey8 = """ALTER TABLE %s ADD CONSTRAINT `fk_TASK_POLICY_TASK_1`
-                                        FOREIGN KEY(`FOR_TASK`) REFERENCES %s(`TASK_ID`);""" % (
-            MYSQL_TAB_TASKPOLICY, MYSQL_TAB_TASK)
+        # fkey8 = """
+        # ALTER TABLE %s DROP FOREIGN KEY IF EXISTS `fk_TASK_POLICY_TASK_1`;
+        # ALTER TABLE %s ADD CONSTRAINT `fk_TASK_POLICY_TASK_1`
+        # FOREIGN KEY(`FOR_TASK`) REFERENCES %s(`TASK_ID`);""" % (
+        #     MYSQL_TAB_TASKPOLICY, MYSQL_TAB_TASKPOLICY, MYSQL_TAB_TASK)
 
         # 执行sql语句
         try:
@@ -179,27 +209,29 @@ class DataHandler:
 
             # 创建表格
             self.cursor.execute(agentsql)
-            self.cursor.execute(tasksql)
-            self.cursor.execute(tasklogsql)
-            self.cursor.execute(targetsql)
+            self.cursor.execute(usersql)
             self.cursor.execute(syslogsql)
+            self.cursor.execute(targetsql)
+            self.cursor.execute(tasksql)
             self.cursor.execute(policysql)
             self.cursor.execute(taskpolicysql)
-            self.cursor.execute(usersql)
+            self.cursor.execute(tasklogsql)
             self.conn.commit()
 
             # 创建外键
-            self.cursor.execute(fkey1)
-            self.cursor.execute(fkey2)
-            self.cursor.execute(fkey3)
-            self.cursor.execute(fkey4)
-            self.cursor.execute(fkey5)
-            self.cursor.execute(fkey6)
-            self.cursor.execute(fkey7)
-            self.cursor.execute(fkey8)
-            self.conn.commit()
+            self.cursor.execute(fkey)
+            # self.cursor.execute(fkey2)
+            # self.cursor.execute(fkey3)
+            # self.cursor.execute(fkey4)
+            # self.cursor.execute(fkey5)
+            # self.cursor.execute(fkey6)
+            # self.cursor.execute(fkey7)
+            # self.cursor.execute(fkey8)
+            # self.conn.commit()
         except Exception as e:
-            print(e)
+            # 重复外键
+            if str(e).find("(1826"):
+                pass
 
     # 获取信息(代理、任务)
     # data_type可选范围参照DataHandler.tabmapping的键
