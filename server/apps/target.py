@@ -1,21 +1,30 @@
 # 目标状态感知
-import random
 # 时延测试接口
 import threading
 
 import pandas as pd
 import requests
 from apiflask import APIBlueprint, Schema
-from apiflask.fields import Integer, String, List, Nested, IP, DateTime
+from apiflask.fields import Integer, String, List, Nested, IP, DateTime, Dict
 from requests.exceptions import Timeout
 
-from apps.util import fake
+from util import da
 
 bp = APIBlueprint("目标信息及状态接口集合", __name__, url_prefix="/target")
 
 icmp_delaytable = {}
 tcp_delaytable = {}
 dns_delaytable = {}
+
+target_map = {
+    "ADDRv4": "ipv4",
+    "ADDRv6": "ipv6",
+    "COU": "cou",
+    "ISP": "isp",
+    "LAT": "lat",
+    "LNG": "lng",
+    "UPDATED_TIME": "time"
+}
 
 
 class Target(Schema):
@@ -154,7 +163,7 @@ def dns_delay_query(target, addr):
 # 状态感知——DNS记录测试接口
 import dns.nameserver
 from apiflask.fields import String
-from apiflask.validators import OneOf
+from apiflask.validators import OneOf, ContainsOnly
 from dns import resolver
 
 
@@ -165,6 +174,9 @@ from dns import resolver
     'domain': String(required=True),
     'qtype': String(required=True, validate=OneOf(['A', 'AAAA', "CNAME", "NS"]))
 }, location='query')
+@bp.output({
+    "ans": List(Dict(String(validate=ContainsOnly(["rrset"])), String()))
+})
 def record(query_data):
     # 特殊协议头
     protols = ["https", "tls"]
@@ -211,37 +223,33 @@ def record(query_data):
     "data": List(Nested(Target()))
 })
 def target_info(query_data):
-    # TODO：具体实现
-    # 普通检索
-    if query_data["ip"] is None:
-        per_page = query_data["per_page"]
-        target_list = []
+    per_page = query_data["per_page"]
+    page = query_data["page"]
+    target_list = []
 
-        for _ in range(per_page):
-            lat, lng, _, cou, _ = fake.location_on_land()
-            target_list.append({
-                "ipv4": fake.ipv4_public(),
-                "ipv6": fake.ipv6(),
-                "protocol": random.choices(["IPv6", "DNSSEC", "DoH", "DoT"], k=random.randint(1, 4)),
-                "protect": random.choices(["0x20", "端口随机化", "请求最小化", "DNSSEC验证"], k=random.randint(1, 4)),
-                "cou": cou,
-                "lat": lat,
-                "lng": lng,
-                "isp": fake.company(),
-                "time": fake.date_time_between('-2y'),
-            })
-        return {"data": target_list}
-    # 查询目标
+    if query_data["ip"] is None:
+        # 普通检索
+        res = da.get_data(data_type="target", offset=(page - 1) * per_page, limit=per_page)
     else:
-        lat, lng, _, cou, _ = fake.location_on_land()
-        target = [{"ipv4": query_data["ip"],
-                   "ipv6": fake.ipv6(),
-                   "protocol": random.choices(["IPv6", "DNSSEC", "DoH", "DoT"], k=random.randint(1, 4)),
-                   "protect": random.choices(["0x20", "端口随机化", "请求最小化", "DNSSEC验证"],
-                                             k=random.randint(1, 4)),
-                   "cou": cou,
-                   "lat": lat,
-                   "lng": lng,
-                   "isp": fake.company(),
-                   "time": fake.date_time_between('-2y'), }]
-        return {"data": target}
+        # 查询目标
+        res = da.get_data(data_type="target", offset=(page - 1) * per_page, limit=per_page,
+                          search={"ip": query_data["ip"]})
+
+    # 结果转换
+    for r in res:
+        target = {}
+        # 支持的协议特殊处理
+        protocol = []
+        for k, v in r.items():
+            if k in ["IPv6", "DNSSEC", "DOH", "DOT"] and v is True:
+                protocol.append(k)
+        target["protocol"] = protocol
+        # 防护措施特殊处理
+        protect = str(r["PROTECT"]).split("|")
+        target["protect"] = protect
+        # 其他统一处理
+        for k in target_map.keys():
+            # 原数据的值赋给经过映射之后的键
+            target[target_map[k]] = r[k]
+        target_list.append(target)
+    return {"data": target_list}
