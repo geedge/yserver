@@ -1,4 +1,6 @@
 # 工具包
+import sys
+
 import pymysql
 from faker import Faker
 from faker.providers import company
@@ -48,8 +50,13 @@ class DataHandler:
     def __init__(self):
 
         # mysql连接,采用字典游标，返回一系列字典值
-        self.conn = pymysql.connect(cursorclass=DictCursor, host=MYSQL_HOST, user='root',
-                                    password=MYSQL_PAWD, port=MYSQL_PORT)
+        try:
+            self.conn = pymysql.connect(cursorclass=DictCursor, host=MYSQL_HOST, user='root',
+                                        password=MYSQL_PAWD, port=MYSQL_PORT)
+        except Exception as e:
+            error(str(e))
+            # 数据库连接失败，停止后续操作
+            sys.exit(1)
         self.cursor = self.conn.cursor()
 
         # 初始化sql语句

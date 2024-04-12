@@ -7,7 +7,7 @@ from apiflask.validators import OneOf
 from flask import request
 
 from settings import *
-from util import da
+from .util import da
 
 bp = APIBlueprint("代理管理接口集合", __name__, url_prefix="/agent")
 

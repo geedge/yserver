@@ -6,7 +6,7 @@ from apiflask import APIBlueprint, Schema
 from apiflask.fields import String, Integer, IP, DateTime, List, Nested
 from apiflask.validators import OneOf
 
-from apps.util import fake
+from .util import fake
 
 bp = APIBlueprint("任务管理接口集合", __name__, url_prefix="/task")
 

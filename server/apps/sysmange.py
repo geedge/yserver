@@ -3,7 +3,7 @@
 from apiflask import APIBlueprint, Schema
 from apiflask.fields import String, Integer, DateTime, List, Nested
 
-from apps.util import fake
+from .util import fake
 
 bp = APIBlueprint("系统管理接口集合", __name__, url_prefix="/user")
 

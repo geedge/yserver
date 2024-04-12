@@ -6,7 +6,7 @@ from apiflask.validators import OneOf
 
 # 测试用
 from settings import *
-from util import da
+from .util import da
 
 bp = APIBlueprint("仪表盘接口", __name__, url_prefix="/sys")
 

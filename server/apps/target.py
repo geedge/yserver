@@ -8,7 +8,7 @@ from apiflask import APIBlueprint, Schema
 from apiflask.fields import Integer, String, List, Nested, IP, DateTime, Dict
 from requests.exceptions import Timeout
 
-from util import da
+from .util import da
 
 bp = APIBlueprint("目标信息及状态接口集合", __name__, url_prefix="/target")
 
