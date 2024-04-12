@@ -213,7 +213,7 @@ def record(query_data):
 
 
 @bp.get("/")
-@bp.doc("目标信息获取接口", "返回目标信息")
+@bp.doc("目标信息获取接口", "返回目标信息，已测试")
 @bp.input({
     "per_page": Integer(load_default=10),
     "page": Integer(load_default=1),
