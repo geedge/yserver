@@ -8,7 +8,7 @@ from apiflask import APIBlueprint, Schema
 from apiflask.fields import Integer, String, List, Nested, IP, DateTime, Dict
 from requests.exceptions import Timeout
 
-from .util import da
+from .util import da, debug
 
 bp = APIBlueprint("目标信息及状态接口集合", __name__, url_prefix="/target")
 
@@ -241,7 +241,8 @@ def target_info(query_data):
         # 支持的协议特殊处理
         protocol = []
         for k, v in r.items():
-            if k in ["IPv6", "DNSSEC", "DOH", "DOT"] and v is True:
+            debug(k + ":" + str(v))
+            if k in ["IPv6", "DNSSEC", "DOH", "DOT"] and bool(v) is True:
                 protocol.append(k)
         target["protocol"] = protocol
         # 防护措施特殊处理

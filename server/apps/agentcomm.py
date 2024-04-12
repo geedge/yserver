@@ -7,7 +7,7 @@ from apiflask.validators import OneOf
 from flask import request
 
 from settings import *
-from .util import da, debug
+from .util import da
 
 bp = APIBlueprint("代理管理接口集合", __name__, url_prefix="/agent")
 
@@ -132,7 +132,6 @@ def agent_info(query_data):
     page = query_data["page"]
     agent_list = []
     res = da.get_data(data_type="agent", offset=(page - 1) * per_page, limit=per_page)
-    debug(res)
     for r in res:
         agent = {}
         for key, value in r.items():

@@ -97,11 +97,11 @@ class DataHandler:
             )ENGINE=innodb DEFAULT CHARSET=utf8;  """ % (MYSQL_TAB_SYSLOG, MYSQL_TAB_USER)
 
         targetsql = """CREATE TABLE IF NOT EXISTS %s(
-            `TARGET_ID` varchar(255) NOT NULL PRIMARY KEY,
+            `TARGET_ID` int NOT NULL AUTO_INCREMENT PRIMARY KEY,
         `ADDRv4` varchar(255),
         `ADDRv6` varchar(255),
         `IPv6` bool,
-        `DNSESEC` bool,
+        `DNSSEC` bool,
         `DOT` bool,
         `DOH` bool,
         `COU` varchar(255),
