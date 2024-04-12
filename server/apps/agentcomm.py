@@ -119,7 +119,7 @@ def task_ret(json_data):
 
 
 @bp.get("/")
-@bp.doc("代理信息获取接口")
+@bp.doc("代理信息获取接口", description="已测试")
 @bp.input({
     "page": Integer(load_default=1),
     "per_page": Integer(load_default=10)
