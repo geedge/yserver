@@ -7,7 +7,7 @@ from apiflask.validators import OneOf
 from flask import request
 
 from settings import *
-from .util import da
+from .util import da, debug
 
 bp = APIBlueprint("代理管理接口集合", __name__, url_prefix="/agent")
 
@@ -132,15 +132,18 @@ def agent_info(query_data):
     page = query_data["page"]
     agent_list = []
     res = da.get_data(data_type="agent", offset=(page - 1) * per_page, limit=per_page)
+    debug(res)
     for r in res:
-        agent_list.append({agent_map[key]: value for key, value in r.items()})
+        agent = {}
+        for key, value in r.items():
+            agent[agent_map[key]] = value if key != "IPADDR" else str(value).split("|")
+        agent_list.append(agent)
     return {"agent_data": agent_list}
 
 
 # 代理信息存储到数据库
 def insert_agent(param: dict):
-    sql = """REPLACE INTO %s(AGENT_ID,ADDRv4,
-            ADDRv6,
+    sql = """REPLACE INTO %s(AGENT_ID,IPADDR,
             CREATED_TIME,
             LAT,
             LNG ,
@@ -152,8 +155,7 @@ def insert_agent(param: dict):
             RAM_SIZE ,
             WORK_STATUS) VALUES(
                 %(id)s,
-                %(v4addr)s,
-                %(v6addr)s,
+                %(ipaddr)s,
                 %(create_time)s,
                 %(lat)s,
                 %(lng)s,
