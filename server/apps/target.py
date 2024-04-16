@@ -6,9 +6,10 @@ import threading
 import pandas as pd
 import requests
 from apiflask import APIBlueprint, Schema
-from apiflask.fields import Integer, String, List, Nested, IP, DateTime
-from apps.util import fake
+from apiflask.fields import Integer, String, List, Nested, IP, DateTime, Dict
 from requests.exceptions import Timeout
+
+from apps.util import fake
 
 bp = APIBlueprint("目标信息及状态接口集合", __name__, url_prefix="/target")
 
@@ -46,7 +47,8 @@ class Delay(Schema):
 
 
 class DelayOut(Schema):
-    delay_data = List(Nested(Delay))
+    code = Integer()
+    delay_data = List(Nested(Delay()))
 
 
 @bp.get("/delay/<string:type>")
@@ -66,7 +68,7 @@ def get_pernode_delay(query_data, type):
         threads.append(mythread)
     for t in threads:
         t.join()
-    return {'delay_data': ans}
+    return {"code": 200, 'delay_data': ans}
 
 
 threadLock = threading.Lock()
@@ -155,6 +157,8 @@ from apiflask.fields import String
 from apiflask.validators import OneOf
 from dns import resolver
 
+rrest_key = "rrset"
+
 
 @bp.get("/check")
 @bp.doc("通过指定的解析器获取指定域名的A/AAAA记录", hide=True)
@@ -163,6 +167,10 @@ from dns import resolver
     'domain': String(required=True),
     'qtype': String(required=True, validate=OneOf(['A', 'AAAA', "CNAME", "NS"]))
 }, location='query')
+@bp.output({
+    "code": Integer(),
+    "ans": List(Dict(String(validate=OneOf([rrest_key])), String()))
+})
 def record(query_data):
     # 特殊协议头
     protols = ["https", "tls"]
@@ -194,8 +202,8 @@ def record(query_data):
     myAnswers = myResolver.resolve(domain, qtype)
     if myAnswers.rrset is not None:
         for r in myAnswers.rrset:
-            ans.append({"rrset": str(r)})
-    return {'ans': ans}
+            ans.append({rrest_key: str(r)})
+    return {"code": 200, 'ans': ans}
 
 
 @bp.get("/")
@@ -206,6 +214,7 @@ def record(query_data):
     "ip": IP(load_default=None)
 }, location='query')
 @bp.output({
+    "code": Integer(),
     "data": List(Nested(Target()))
 })
 def target_info(query_data):
@@ -227,7 +236,7 @@ def target_info(query_data):
                 "isp": fake.company(),
                 "time": fake.date_time_between('-2y'),
             })
-        return {"data": target_list}
+        return {"code": 200, "data": target_list}
     # 查询目标
     else:
         lat, lng, _, cou, _ = fake.location_on_land()
@@ -241,4 +250,4 @@ def target_info(query_data):
                    "lng": lng,
                    "isp": fake.company(),
                    "time": fake.date_time_between('-2y'), }]
-        return {"data": target}
+        return {"code": 200, "data": target}

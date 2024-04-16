@@ -4,8 +4,8 @@ import random
 from apiflask import APIBlueprint, Schema
 from apiflask.fields import String, Integer, List, Nested, Boolean, DateTime
 from apiflask.validators import OneOf
-from apps.util import fake
 
+from apps.util import fake
 
 bp = APIBlueprint("代理管理接口集合", __name__, url_prefix="/agent")
 
@@ -58,7 +58,9 @@ def task_ret():
     "per_page": Integer(load_default=10)
 }, location="query")
 @bp.output({
-    "agent_data": List(Nested(agent()))
+    "code": Integer(),
+    "agent_data": List(Nested(agent())),
+    "total": Integer()
 })
 def agent_info(query_data):
     per_page = query_data["per_page"]
@@ -79,4 +81,4 @@ def agent_info(query_data):
                 '{:.2f}'.format(100 * random.random())) + "%可用)",
             "start_time": fake.date_time_between(start_date="-1y")})
 
-    return {"agent_data": agent_list}
+    return {"code": 200, "agent_data": agent_list, "total": 10 * per_page}

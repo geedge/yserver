@@ -1,12 +1,12 @@
 # 系统信息接口
 import datetime
 
-# 测试用
-from apps.util import fake
-
 from apiflask import APIBlueprint, Schema
 from apiflask.fields import Date, Integer, Nested, Dict, DateTime, String, List
 from apiflask.validators import OneOf
+
+# 测试用
+from apps.util import fake
 
 bp = APIBlueprint("仪表盘接口", __name__, url_prefix="/sys")
 
@@ -30,6 +30,7 @@ class LogOut(Schema):
 @bp.get("/num")
 @bp.doc("系统信息获取接口", "返回当前系统状态,包括已部署代理节点数量、已执行任务次数、系统已运行天数以及已探测目标统计")
 @bp.output({
+    "code": Integer(),
     "agent_num": Integer(),
     "task_num": Integer(),
     "workday": Integer(),
@@ -50,6 +51,7 @@ def systate():
     dot_num = fake.random.randint(10, 100)
     # 返回结果
     return {
+        "code": 200,
         "agent_num": agent_num,
         "task_num": task_num,
         "workday": workday,
@@ -65,6 +67,7 @@ def systate():
 @bp.get("/num/date")
 @bp.doc("仪表盘柱状图数据获取接口", "返回当前不同探测目标在一周内的数量变化情况")
 @bp.output({
+    "code": Integer(),
     "date_data": Dict(Date(), Nested(TargetOut()))
 })
 def target_date():
@@ -81,7 +84,7 @@ def target_date():
             "dot": fake.random.randint(10, 20) * day
         }
         day += 1
-    return {"date_data": dates}
+    return {"code": 200, "date_data": dates}
 
 
 @bp.get("/log")
@@ -91,7 +94,9 @@ def target_date():
 }, location="query")
 @bp.doc("系统操作日志获取接口", "返回系统的操作日志")
 @bp.output({
-    "log_data": List(Nested(LogOut()))
+    "code": Integer(),
+    "log_data": List(Nested(LogOut())),
+    "total": Integer()
 })
 def sys_log(query_data):
     # 每页显示多少项
@@ -108,4 +113,4 @@ def sys_log(query_data):
             "user": fake.name(),
             "ip": fake.ipv4()
         })
-    return {"log_data": log_list}
+    return {"code": 200, "log_data": log_list, "total": 10 * per_page}
