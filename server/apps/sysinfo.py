@@ -37,6 +37,7 @@ class LogOut(Schema):
 @bp.get("/num")
 @bp.doc("系统信息获取接口", "返回当前系统状态,包括已部署代理节点数量、已执行任务次数、系统已运行天数以及已探测目标统计")
 @bp.output({
+    "code": Integer(),
     "agent_num": Integer(),
     "task_num": Integer(),
     "workday": Integer(),
@@ -56,6 +57,7 @@ def systate():
     dot_num = da.count_data("target", {"DOT": True})
     # 返回结果
     return {
+        "code": 200,
         "agent_num": agent_num,
         "task_num": task_num,
         "workday": workday,
@@ -71,6 +73,7 @@ def systate():
 @bp.get("/num/date")
 @bp.doc("仪表盘柱状图数据获取接口", "返回当前不同探测目标在一周内的数量变化情况")
 @bp.output({
+    "code": Integer(),
     "date_data": Dict(Date(), Nested(TargetOut()))
 })
 def target_date():
@@ -86,19 +89,26 @@ def target_date():
             "dot": da.count_data_by_time("target", time=d, search={"DOT": True})
         }
         day += 1
-    return {"date_data": dates}
+    return {"code": 200, "date_data": dates}
 
 
 # 系统操作日志获取接口
 @bp.get("/log")
 @bp.input({
+    "begin": Date(),
+    "end": Date(),
+    "level": String(validate=OneOf(["INFO", "WARNING", "ERROR"])),
+    "user": String(),
     "per_page": Integer(load_default=10),
     "page": Integer(load_default=1)
 }, location="query")
 @bp.doc("系统操作日志获取接口", "返回系统的操作日志")
 @bp.output({
-    "log_data": List(Nested(LogOut()))
+    "code": Integer(),
+    "log_data": List(Nested(LogOut())),
+    "total": Integer()
 })
+# TODO:完善
 def sys_log(query_data):
     # 每页显示多少项
     per_page = query_data["per_page"]
