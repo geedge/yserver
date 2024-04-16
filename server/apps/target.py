@@ -273,7 +273,7 @@ def filter_info():
 
 
 @bp.get("/map")
-@bp.doc("地图信息获取接口")
+@bp.doc("地图信息获取接口", hide=True)
 @bp.output({
     "code": Integer(),
     "proto": List(String()),

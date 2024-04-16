@@ -24,16 +24,19 @@ class User(Schema):
 }, location='query')
 @bp.output({
     "code": Integer(),
-    "data": List(Nested(User()))
+    "data": List(Nested(User())),
+    "total": Integer()
 })
 def list_user(query_data):
-    if query_data['page'] == 1:
+    per_page = query_data["per_page"]
+    page = query_data["page"]
+    if page == 1:
         user_list = [
             {"account": "Root", "username": "管理员", "time": fake.date_time_between(start_date='-10y', end_date='-9y'),
              "created_by": "", "group": "Admin"}]
     else:
         user_list = []
-    for _ in range(query_data["per_page"] - len(user_list)):
+    for _ in range(per_page - len(user_list)):
         user_list.append({
             "account": fake.vin(),
             "username": fake.name(),
@@ -41,7 +44,7 @@ def list_user(query_data):
             "created_by": "管理员",
             "group": "Admin"
         })
-    return {"code": 200, "data": user_list}
+    return {"code": 200, "data": user_list, "total": 10 * per_page}
 
 
 @bp.post("/")

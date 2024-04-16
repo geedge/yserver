@@ -179,7 +179,7 @@ def task_info(query_data):
     "id": String(required=True),
     "per_page": Integer(load_default=10),
     "page": Integer(load_default=1)
-})
+}, location="query")
 @bp.output({
     "code": Integer(),
     "data": List(Nested(TaskLog())),
@@ -194,6 +194,6 @@ def taskpolicy_log(query_data):
         "targetip": "2406:1234:1234:1234:1234:1234:1234:1234",
         "level": random.choice(["INFO", "WARNING", "ERROR"]),
         "info": fake.text(max_nb_chars=20, ext_word_list=None)
-    } for _ in range(20)]
+    } for _ in range(per_page)]
 
     return {"code": 200, "data": policy_output, "total": 10 * per_page}
