@@ -45,15 +45,17 @@ class TaskState(Schema):
     policy_name = String()
     # 策略参数
     policy_param = String()
-    # 执行输出
-    policy_output = List(Nested(TaskLog()))
+    # 执行策略编号
+    policy_id = String()
     # 效果评估
     policy_status = String()
 
 
 # 创建任务接口
 @bp.post("/create")
-@bp.doc("任务创建接口", "字段含义详见task.py文件注释")
+@bp.doc("任务创建接口", "部分字段值的映射关系：</br>"
+        + "policy 期望策略，可选参数范围及对应含义为：，auto-自动，ddos-拒绝服务，sjqp-数据欺骗</br>"
+        + "scan 状态感知方式，可选参数范围及对应含义为：auto-自动，icmp-icmp/v6时延，tcp-tcp时延，dns-dns时延，record-记录正确性验证")
 @bp.input({
     # 任务名称
     "name": String(),
@@ -68,7 +70,7 @@ class TaskState(Schema):
     # 期望策略
     "policy": String(validate=OneOf(["auto", "ddos", "sjqp"])),
     # 状态感知方式
-    "scan": String(validate=OneOf(["auto", "delay", "record"])),
+    "scan": String(validate=OneOf(["auto", "icmp", "dns", "tcp", "record"])),
     # 策略切换时限
     "policy_time": Integer(),
     # 任务执行时限
@@ -76,10 +78,14 @@ class TaskState(Schema):
     # 运行配置
     "run_flag": String(validate=OneOf(["now", "man"]))
 })
+@bp.output({
+    "code": Integer(),
+    "msg": String()
+})
 # TODO：创建任务接口具体实现
 def make_task(json_data):
     print(json_data)
-    return {"msg": "ok"}
+    return {"code": 200, "msg": "ok"}
 
 
 opsmap = {"start": "开始", "stop": "暂停", "cancel": "停止"}
@@ -92,10 +98,14 @@ opsmap = {"start": "开始", "stop": "暂停", "cancel": "停止"}
     "taskid": String(required=True),
     "ops": String(required=True, validate=OneOf(["start", "stop", "cancel"]))
 })
+@bp.output({
+    "code": Integer(),
+    "msg": String(),
+})
 # TODO：操作任务开始停止控制接口具体实现
 def ops_task(json_data):
     ops = opsmap[json_data["ops"]]
-    return {"msg": "任务" + json_data["taskid"] + "已" + ops}
+    return {"code": 200, "msg": "任务" + json_data["taskid"] + "已" + ops}
 
 
 # 查询任务列表接口
@@ -106,7 +116,9 @@ def ops_task(json_data):
     "per_page": Integer(load_default=10)
 }, location="query")
 @bp.output({
-    "data": List(Nested(Task()))
+    "code": Integer(),
+    "data": List(Nested(Task())),
+    "total": Integer()
 })
 # TODO：查询任务状态接口具体实现
 def tasks_state(query_data):
@@ -123,7 +135,7 @@ def tasks_state(query_data):
             "create_time": fake.date_time_between(start_date="-1y"),
             "status": random.choice(["working", "stop", "finish"])
         })
-    return {"data": task_list}
+    return {"code": 200, "data": task_list}
 
 
 # 任务详情接口
@@ -133,6 +145,7 @@ def tasks_state(query_data):
     "taskid": String(required=True),
 }, location="query")
 @bp.output({
+    "code": Integer(),
     "data": List(Nested(TaskState()))
 })
 # TODO：任务详情接口具体实现
@@ -146,13 +159,7 @@ def task_info(query_data):
             "start_time": fake.date_time_between(start_date="-1y"),
             "policy_name": random.choice(["IPv6", "DNSSEC", "DoT", "DoH"]) + "  " + random.choice(["DDoS", "数据欺骗"]),
             "policy_param": random.choice(["攻击速率: 1000pps", "目标域名: www.google.com | 目标记录: NS attack.com"]),
-            "policy_output": [{
-                "time": fake.date_time_between(start_date="-1y"),
-                "ip": "192.168.1.1",
-                "targetip": "2406:1234:1234:1234:1234:1234:1234:1234",
-                "level": random.choice(["INFO", "WARNING", "ERROR"]),
-                "info": fake.text(max_nb_chars=20, ext_word_list=None)
-            } for _ in range(20)],
+            "policy_id": str(fake.random.randint(1, 10000)),
             "policy_status": "无效；原因为：超时未成功"
         })
     # 当前正在执行的策略
@@ -160,13 +167,33 @@ def task_info(query_data):
         "start_time": datetime.datetime.now(),
         "policy_name": random.choice(["IPv6", "DNSSEC", "DoT", "DoH"]) + "  " + random.choice(["DDoS", "数据欺骗"]),
         "policy_param": random.choice(["攻击速率: 1000pps", "目标域名: www.google.com | 目标记录: NS attack.com"]),
-        "policy_output": [{
-            "time": fake.date_time_between(start_date="-1y"),
-            "ip": "192.168.1.1",
-            "targetip": "2406:1234:1234:1234:1234:1234:1234:1234",
-            "level": random.choice(["INFO", "WARNING", "ERROR"]),
-            "info": fake.text(max_nb_chars=20, ext_word_list=None)
-        } for _ in range(20)],
+        "policy_id": str(fake.random.randint(1, 10000)),
         "policy_status": "评估中"
     })
-    return {"data": task_state_list}
+    return {"code": 200, "data": task_state_list}
+
+
+@bp.get("/tp")
+@bp.doc("任务策略执行日志获取接口")
+@bp.input({
+    "id": String(required=True),
+    "per_page": Integer(load_default=10),
+    "page": Integer(load_default=1)
+}, location="query")
+@bp.output({
+    "code": Integer(),
+    "data": List(Nested(TaskLog())),
+    "total": Integer()
+})
+def taskpolicy_log(query_data):
+    per_page = query_data["per_page"]
+    page = query_data["page"]
+    policy_output = [{
+        "time": fake.date_time_between(start_date="-1y"),
+        "ip": "192.168.1.1",
+        "targetip": "2406:1234:1234:1234:1234:1234:1234:1234",
+        "level": random.choice(["INFO", "WARNING", "ERROR"]),
+        "info": fake.text(max_nb_chars=20, ext_word_list=None)
+    } for _ in range(per_page)]
+
+    return {"code": 200, "data": policy_output, "total": 10 * per_page}

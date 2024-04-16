@@ -56,6 +56,7 @@ class Delay(Schema):
 
 
 class DelayOut(Schema):
+    code = Integer()
     delay_data = List(Nested(Delay()))
 
 
@@ -77,7 +78,7 @@ def get_pernode_delay(query_data, type):
         threads.append(mythread)
     for t in threads:
         t.join()
-    return {'delay_data': ans}
+    return {"code": 200, 'delay_data': ans}
 
 
 threadLock = threading.Lock()
@@ -175,6 +176,7 @@ from dns import resolver
     'qtype': String(required=True, validate=OneOf(['A', 'AAAA', "CNAME", "NS"]))
 }, location='query')
 @bp.output({
+    "code": Integer(),
     "ans": List(Dict(String(validate=ContainsOnly(["rrset"])), String()))
 })
 def record(query_data):
@@ -209,18 +211,23 @@ def record(query_data):
     if myAnswers.rrset is not None:
         for r in myAnswers.rrset:
             ans.append({"rrset": str(r)})
-    return {'ans': ans}
+    return {"code": 200, 'ans': ans}
 
 
 @bp.get("/")
-@bp.doc("目标信息获取接口", "返回目标信息，已测试")
+@bp.doc("(表格)目标信息获取接口", "返回目标信息")
 @bp.input({
+    "protocol": String(validate=OneOf(['IPv6', 'DNSSEC', "DoH", "DoT"])),
+    "cou": String(),
+    "isp": String(),
     "per_page": Integer(load_default=10),
     "page": Integer(load_default=1),
     "ip": IP(load_default=None)
 }, location='query')
 @bp.output({
-    "data": List(Nested(Target()))
+    "code": Integer(),
+    "data": List(Nested(Target())),
+    "total": Integer()
 })
 def target_info(query_data):
     per_page = query_data["per_page"]
@@ -253,4 +260,34 @@ def target_info(query_data):
             # 原数据的值赋给经过映射之后的键
             target[target_map[k]] = r[k]
         target_list.append(target)
-    return {"data": target_list}
+    # TODO:total
+    return {"code": 200, "data": target_list}
+
+
+@bp.get("/filter")
+@bp.doc("目标可筛选信息获取接口")
+@bp.output({
+    "code": Integer(),
+    "proto": List(String()),
+    "isp": List(String()),
+    "cou": List(String())
+})
+# TODO：实现
+def filter_info():
+    proto = ["IPv6", "DNSSEC", "DoH", "DoT"]
+    isp = ["google", "cloudflare", "阿里云", "DNSPod", "quad9"]
+    cou = ["美国", "中国", "日本", "澳大利亚", "新加坡"]
+    return {"code": 200, "proto": proto, "isp": isp, "cou": cou}
+
+
+@bp.get("/map")
+@bp.doc("地图信息获取接口", hide=True)
+@bp.output({
+    "code": Integer(),
+    "proto": List(String()),
+    "isp": List(String()),
+    "cou": List(String())
+})
+def map_info(query_data):
+    # TODO:实现
+    return {"code": 200}

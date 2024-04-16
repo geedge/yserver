@@ -23,7 +23,9 @@ class User(Schema):
     "page": Integer(load_default=1)
 }, location='query')
 @bp.output({
-    "data": List(Nested(User()))
+    "code": Integer(),
+    "data": List(Nested(User())),
+    "total": Integer()
 })
 def list_user(query_data):
     # TODO：具体实现
@@ -41,7 +43,7 @@ def list_user(query_data):
             "created_by": "管理员",
             "group": "Admin"
         })
-    return {"data": user_list}
+    return {"code": 200, "data": user_list}
 
 
 @bp.post("/")
@@ -52,7 +54,11 @@ def list_user(query_data):
     "pwd": String(required=True),
     "cur_user": String(load_default="Root")
 })
+@bp.output({
+    "code": Integer(),
+    "msg": String()
+})
 def create_user(json_data):
     # TODO:具体实现
     print(json_data)
-    return {"msg": "ok"}
+    return {"code": 200, "msg": "ok"}
