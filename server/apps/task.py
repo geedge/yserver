@@ -53,7 +53,8 @@ class TaskState(Schema):
 
 # 创建任务接口
 @bp.post("/create")
-@bp.doc("任务创建接口", "字段含义详见task.py文件注释")
+@bp.doc("任务创建接口",
+        description="部分字段值的映射关系：</br> policy 期望策略，可选参数范围及对应含义为：，auto-自动，ddos-拒绝服务，sjqp-数据欺骗</br> scan 状态感知方式，可选参数范围及对应含义为：auto-自动，icmp-icmp/v6时延，tcp-tcp时延，dns-dns时延，record-记录正确性验证")
 @bp.input({
     # 任务名称
     "name": String(),
@@ -68,7 +69,7 @@ class TaskState(Schema):
     # 期望策略
     "policy": String(validate=OneOf(["auto", "ddos", "sjqp"])),
     # 状态感知方式
-    "scan": String(validate=OneOf(["auto", "delay", "record"])),
+    "scan": String(validate=OneOf(["auto", "icmp", "dns", "tcp", "record"])),
     # 策略切换时限
     "policy_time": Integer(),
     # 任务执行时限
