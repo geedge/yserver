@@ -89,6 +89,10 @@ def target_date():
 
 @bp.get("/log")
 @bp.input({
+    "begin": Date(),
+    "end": Date(),
+    "level": String(validate=OneOf(["INFO", "WARNING", "ERROR"])),
+    "user": String(),
     "per_page": Integer(load_default=10),
     "page": Integer(load_default=1)
 }, location="query")

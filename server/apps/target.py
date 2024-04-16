@@ -207,15 +207,19 @@ def record(query_data):
 
 
 @bp.get("/")
-@bp.doc("目标信息获取接口", "返回目标信息")
+@bp.doc("(表格)目标信息获取接口", "返回目标信息")
 @bp.input({
+    "protocol": String(validate=OneOf(['IPv6', 'DNSSEC', "DoH", "DoT"])),
+    "cou": String(),
+    "isp": String(),
     "per_page": Integer(load_default=10),
     "page": Integer(load_default=1),
     "ip": IP(load_default=None)
 }, location='query')
 @bp.output({
     "code": Integer(),
-    "data": List(Nested(Target()))
+    "data": List(Nested(Target())),
+    "total": Integer()
 })
 def target_info(query_data):
     # 普通检索
@@ -236,7 +240,7 @@ def target_info(query_data):
                 "isp": fake.company(),
                 "time": fake.date_time_between('-2y'),
             })
-        return {"code": 200, "data": target_list}
+        return {"code": 200, "data": target_list, "total": 10 * per_page}
     # 查询目标
     else:
         lat, lng, _, cou, _ = fake.location_on_land()
@@ -250,4 +254,32 @@ def target_info(query_data):
                    "lng": lng,
                    "isp": fake.company(),
                    "time": fake.date_time_between('-2y'), }]
-        return {"code": 200, "data": target}
+        return {"code": 200, "data": target, "total": 1}
+
+
+@bp.get("/filter")
+@bp.doc("目标可筛选信息获取接口")
+@bp.output({
+    "code": Integer(),
+    "proto": List(String()),
+    "isp": List(String()),
+    "cou": List(String())
+})
+def filter_info():
+    proto = ["IPv6", "DNSSEC", "DoH", "DoT"]
+    isp = ["google", "cloudflare", "阿里云", "DNSPod", "quad9"]
+    cou = ["美国", "中国", "日本", "澳大利亚", "新加坡"]
+    return {"code": 200, "proto": proto, "isp": isp, "cou": cou}
+
+
+@bp.get("/map")
+@bp.doc("地图信息获取接口")
+@bp.output({
+    "code": Integer(),
+    "proto": List(String()),
+    "isp": List(String()),
+    "cou": List(String())
+})
+def map_info(query_data):
+    # TODO:实现
+    return {"code": 200}
