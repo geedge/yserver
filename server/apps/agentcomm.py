@@ -11,11 +11,14 @@ from .util import da
 
 bp = APIBlueprint("代理管理接口集合", __name__, url_prefix="/agent")
 
+# 代理类型
+agent_type = ["渗透攻击", "状态感知", "参数感知"]
+
 
 class agent(Schema):
     id = String()
     ipaddr = List(String())
-    atype = String(validate=OneOf(["渗透攻击", "状态感知", "参数感知"]))
+    atype = String(validate=OneOf(agent_type))
     status = Boolean()
     idle = Boolean()
     port = Integer()
@@ -119,14 +122,23 @@ def task_ret(json_data):
 
 
 @bp.get("/")
-@bp.doc("代理信息获取接口", description="已测试")
+@bp.doc("代理信息获取接口", description="输入参数说明：</br>"
+                                        + "atype:能力类型，可选参数范围及对应含义为：all-全部（默认），gjst-攻击渗透，ztgz-状态感知，csgz-参数感知 </br>"
+                                        + "status:当前状态，可选参数范围及对应含义为：2-全部(默认)，1-在线，0-离线 </br>"
+                                        + "idle:是否空闲，可选参数范围及对应含义为：2-全部(默认)，1-空闲，0-执行中 </br>")
 @bp.input({
+    "atype": String(load_default="all"),
+    "status": Integer(validate=OneOf([0, 1, 2])),
+    "idle": Integer(validate=OneOf([0, 1, 2])),
     "page": Integer(load_default=1),
     "per_page": Integer(load_default=10)
 }, location="query")
 @bp.output({
-    "agent_data": List(Nested(agent()))
+    "code": Integer(),
+    "agent_data": List(Nested(agent())),
+    "total": Integer()
 })
+# TODO: code total
 def agent_info(query_data):
     per_page = query_data["per_page"]
     page = query_data["page"]
@@ -137,7 +149,7 @@ def agent_info(query_data):
         for key, value in r.items():
             agent[agent_map[key]] = value if key != "IPADDR" else str(value).split("|")
         agent_list.append(agent)
-    return {"agent_data": agent_list}
+    return {"code": 200, "agent_data": agent_list, "total": 100}
 
 
 # 代理信息存储到数据库
@@ -169,3 +181,19 @@ def insert_agent(param: dict):
     da.cursor.execute(sql)
     da.conn.commit()
     return None
+
+
+@bp.doc("代理删除接口", "输入参数说明：</br>"
+        + "id: 代理编号")
+@bp.post("/del")
+@bp.input({
+    "id": String(required=True)
+})
+@bp.output({
+    "code": Integer(),
+    "msg": String()
+})
+# TODO: 实现
+def del_agent(json_data):
+    print(json_data)
+    return {"code": 200, "msg": "ok"}
