@@ -1,6 +1,7 @@
 import argparse
 
 from apiflask import APIFlask
+from flask_cors import CORS
 
 from apps.agentcomm import bp as agentbp
 from apps.sysinfo import bp as sysbp
@@ -10,6 +11,8 @@ from apps.task import bp as taskbp
 
 # 注册蓝图
 app = APIFlask(__name__, template_folder='./static/templates')
+# 增加跨域支持
+CORS(app)
 # 目标状态获取接口
 app.register_blueprint(targetbp)
 # 代理接口

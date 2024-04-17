@@ -3,7 +3,9 @@ numpy~=1.25.0
 six~=1.16.0
 requests~=2.31.0
 pandas~=2.1.1
-APIFlask~=2.0.2
+APIFlask~=2.1.1
 flask~=3.0.0
-dnspython~=2.4.2
+dnspython~=2.6.1
 icmplib~=3.0.4
+faker~=18.9.0
+flask-cors
