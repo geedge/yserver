@@ -38,6 +38,21 @@ class TestNode(Schema):
     Port = Integer()
 
 
+# 地图国家数据格式
+class CouInfo(Schema):
+    # 国家名称
+    name = String()
+    # 不同协议的解析器详细数量说明
+    title = String()
+    # 总数量
+    value = Integer()
+
+
+# 地图响应数据格式
+class MapInfo(Schema):
+    earthAddTitle = List(Nested(CouInfo()))
+
+
 class Delay(Schema):
     Id = String()
     CurrDelay = Integer()
@@ -161,6 +176,8 @@ from apiflask.validators import OneOf
 from dns import resolver
 
 rrest_key = "rrset"
+# 协议类型
+proto_type = ['IPv6', 'DNSSEC', "DoH", "DoT"]
 
 
 @bp.get("/check")
@@ -269,20 +286,44 @@ def target_info(query_data):
     "cou": List(String())
 })
 def filter_info():
-    proto = ["IPv6", "DNSSEC", "DoH", "DoT"]
+    proto = proto_type
     isp = ["google", "cloudflare", "阿里云", "DNSPod", "quad9"]
     cou = ["美国", "中国", "日本", "澳大利亚", "新加坡"]
     return {"code": 200, "proto": proto, "isp": isp, "cou": cou}
 
 
 @bp.get("/map")
-@bp.doc("地图信息获取接口", hide=True)
+@bp.doc("地图信息获取接口")
+@bp.input({
+    "protocol": String(load_default=None, validate=OneOf(proto_type)),
+    "cou": String(load_default=None),
+    "isp": String(load_default=None),
+    "ip": IP(load_default=None)
+}, location="query")
 @bp.output({
     "code": Integer(),
-    "proto": List(String()),
-    "isp": List(String()),
-    "cou": List(String())
+    "dataObject": Dict(String(load_default="earthAddTitle"), List(Nested(CouInfo()))),
 })
 def map_info(query_data):
-    # TODO:实现
-    return {"code": 200}
+    if query_data["ip"] is None:
+        cou_list = []
+        cou_num = 197 if query_data["cou"] is None else 1
+        for _ in range(cou_num):
+            # 每种协议的解析器数量
+            value_list = [random.randint(1, 5000) if proto_type[i] == query_data["protocol"] else 0 for i in
+                          range(len(proto_type))] if query_data["protocol"] is not None else [random.randint(1, 5000)
+                                                                                              for _ in
+                                                                                              range(len(proto_type))]
+            cou_list.append({
+                "name": fake.unique.country() if query_data["cou"] is None else query_data["cou"],
+                "title": "各类解析器数量为：{IPv6：" + str(value_list[0]) + "，DNSSEC：" + str(
+                    value_list[1]) + "，DoH：" + str(value_list[2]) + "，DoT：" + str(value_list[3]) + "}",
+                "value": sum(value_list),
+            })
+        return {"code": 200, "dataObject": {"earthAddTitle": cou_list}}
+    # 查询目标
+    else:
+        target = [{"name": fake.unique.country(),
+                   "title": "该解析器支持：" + '、'.join(random.choices(proto_type, k=random.randint(1, 4))) + " 协议",
+                   "value": 1, }]
+        return {"code": 200, "dataObject": {"earthAddTitle": target}}
