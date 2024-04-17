@@ -9,7 +9,10 @@ from apps.util import fake
 
 bp = APIBlueprint("代理管理接口集合", __name__, url_prefix="/agent")
 
-agent_type = ["渗透攻击", "状态感知", "参数感知"]
+agent_type = ["攻击渗透", "状态感知", "参数感知"]
+agent_map = {"gjst": agent_type[0], "ztgz": agent_type[1], "csgz": agent_type[2]}
+status_map = {1: True, 0: False}
+idle_map = {1: True, 0: False}
 
 
 class agent(Schema):
@@ -59,9 +62,9 @@ def task_ret():
                                         + "status:当前状态，可选参数范围及对应含义为：2-全部(默认)，1-在线，0-离线 </br>"
                                         + "idle:是否空闲，可选参数范围及对应含义为：2-全部(默认)，1-空闲，0-执行中 </br>")
 @bp.input({
-    "atype": String(load_default="all"),
-    "status": Integer(validate=OneOf([0, 1, 2])),
-    "idle": Integer(validate=OneOf([0, 1, 2])),
+    "atype": String(load_default="all", validate=OneOf(["all", "gjst", "csgz", "ztgz"])),
+    "status": Integer(load_default=2, validate=OneOf([0, 1, 2])),
+    "idle": Integer(load_default=2, validate=OneOf([0, 1, 2])),
     "page": Integer(load_default=1),
     "per_page": Integer(load_default=10)
 }, location="query")
@@ -73,15 +76,18 @@ def task_ret():
 def agent_info(query_data):
     per_page = query_data["per_page"]
     page = query_data["page"]
+    atype = query_data["atype"]
+    status = query_data["status"]
+    idle = query_data["idle"]
     agent_list = []
     # TODO:接口数据库贯通实现
     for i in range(per_page):
         agent_list.append({
             "id": fake.unique.random_int(),
             "ipaddr": [fake.ipv4_public(), fake.ipv6()],
-            "atype": fake.word(ext_word_list=agent_type),
-            "status": random.choice([True, False]),
-            "idle": random.choice([True, False]),
+            "atype": fake.word(ext_word_list=agent_type) if atype == "all" else agent_map[atype],
+            "status": random.choice([True, False]) if status == 2 else status_map[status],
+            "idle": random.choice([True, False]) if idle == 2 else idle_map[idle],
             "port": random.randint(1000, 65534),
             "sys": random.choice(["Linux", "Windows", "Macos"]),
             "cpu_num": 4,

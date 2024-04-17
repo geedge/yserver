@@ -3,7 +3,7 @@ import datetime
 import random
 
 from apiflask import APIBlueprint, Schema
-from apiflask.fields import String, Integer, IP, DateTime, List, Nested
+from apiflask.fields import String, Integer, DateTime, List, Nested
 from apiflask.validators import OneOf
 
 from apps.util import fake
@@ -12,7 +12,7 @@ bp = APIBlueprint("任务管理接口集合", __name__, url_prefix="/task")
 
 
 class Task(Schema):
-    id = Integer()
+    id = String()
     target = String()
     name = String()
     agent = String()
@@ -54,12 +54,22 @@ class TaskState(Schema):
 # 创建任务接口
 @bp.post("/create")
 @bp.doc("任务创建接口",
-        description="部分字段值的映射关系：</br> policy 期望策略，可选参数范围及对应含义为：，auto-自动，ddos-拒绝服务，sjqp-数据欺骗</br> scan 状态感知方式，可选参数范围及对应含义为：auto-自动，icmp-icmp/v6时延，tcp-tcp时延，dns-dns时延，record-记录正确性验证")
+        description="部分字段值的映射关系：</br>"
+                    + "target  目标解析器的IP或域名</br>"
+                    + "agent 执行代理的ID</br>"
+                    + "name 任务名称</br>"
+                    + "target_domain  欺骗目标域名</br>"
+                    + "target_rr 期待注入记录，格式为记录类型+\"{空格}\"+记录内容，例如“NS attack.com”</br>"
+                    + "policy_time 策略切换时限</br>"
+                    + "run_time 任务执行时限</br>"
+                    + "run_flag 运行配置</br>"
+                    + " policy 期望策略，可选参数范围及对应含义为：，auto-自动，ddos-拒绝服务，sjqp-数据欺骗</br>"
+                    + "scan 状态感知方式，可选参数范围及对应含义为：auto-自动，icmp-icmp/v6时延，tcp-tcp时延，dns-dns时延，record-记录正确性验证</br>")
 @bp.input({
     # 任务名称
     "name": String(),
     # 目标IP
-    "target": IP(),
+    "target": String(),
     # 执行代理
     "agent": String(),
     # 目标域名

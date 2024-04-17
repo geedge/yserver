@@ -38,7 +38,7 @@ def list_user(query_data):
         user_list = []
     for _ in range(per_page - len(user_list)):
         user_list.append({
-            "account": fake.vin(),
+            "account": fake.aba(),
             "username": fake.name(),
             "time": fake.date_time_between("-1y"),
             "created_by": "管理员",

@@ -3,10 +3,10 @@ import random
 # 时延测试接口
 import threading
 
-import pandas as pd
 import requests
 from apiflask import APIBlueprint, Schema
 from apiflask.fields import Integer, String, List, Nested, IP, DateTime, Dict
+from apiflask.validators import OneOf
 from requests.exceptions import Timeout
 
 from apps.util import fake
@@ -39,8 +39,8 @@ class TestNode(Schema):
 
 
 class Delay(Schema):
-    Id = Integer()
-    CurrDelay = String()
+    Id = String()
+    CurrDelay = Integer()
     # MeanDelay=Integer()
     # MaxDelay=Integer()
     Type = String()
@@ -51,23 +51,26 @@ class DelayOut(Schema):
     delay_data = List(Nested(Delay()))
 
 
-@bp.get("/delay/<string:type>")
-@bp.doc("获取每个节点的时延数据", "type参数为{icmp,dns,tcp}中的一个", hide=True)
-@bp.input({"ip": IP(required=False)}, location="query")
+@bp.get("/delay")
+@bp.doc("获取每个节点的时延数据,单位为ms", "type参数为{icmp,dns,tcp}中的一个,target为目标IP或DoH目标域名")
+@bp.input({
+    "target": String(required=True),
+    "type": String(required=True, validate=OneOf(["icmp", "dns", "tcp"]))}, location="query")
 @bp.output(DelayOut)
-def get_pernode_delay(query_data, type):
-    addr = ""
-    if 'ip' in query_data.keys():
-        addr = query_data['ip']
+def get_pernode_delay(query_data):
+    target = query_data["target"]
+    scan_type = query_data["type"]
     ans = []
-    threads = []
-    df = pd.read_csv("./server.csv", encoding="utf-8")
-    for index, row in df.iterrows():
-        mythread = threading.Thread(target=task, args=[ans, addr, row, type])
-        mythread.start()
-        threads.append(mythread)
-    for t in threads:
-        t.join()
+    # threads = []
+    # # df = pd.read_csv("./server.csv", encoding="utf-8")
+    # for index, row in df.iterrows():
+    #     # mythread = threading.Thread(target=task, args=[ans, target, row, scan_type])
+    #     mythread.start()
+    #     threads.append(mythread)
+    # for t in threads:
+    #     t.join()
+    for i in range(5):
+        ans.append({"Id": str(i), "Type": scan_type, "CurrDelay": random.randint(1, 1000)})
     return {"code": 200, 'delay_data': ans}
 
 
@@ -161,7 +164,7 @@ rrest_key = "rrset"
 
 
 @bp.get("/check")
-@bp.doc("通过指定的解析器获取指定域名的A/AAAA记录", hide=True)
+@bp.doc("通过指定的解析器获取指定域名的A/AAAA/CNAME/NS记录")
 @bp.input({
     'rev': String(required=True),
     'domain': String(required=True),
@@ -190,7 +193,7 @@ def record(query_data):
             res = rev.split(":")
             myResolver.nameservers = [dns.nameserver.Do53Nameserver(res[0], port=res[1])]
         else:
-            myResolver.nameservers = [rev]
+            myResolver.nameservers = [dns.nameserver.Do53Nameserver(rev)]
     else:
         #  doh服务
         if "https" in rev:
