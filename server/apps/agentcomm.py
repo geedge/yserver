@@ -144,7 +144,6 @@ def task_ret(json_data):
     "agent_data": List(Nested(agent())),
     "total": Integer()
 })
-# TODO: code total
 def agent_info(query_data):
     per_page = query_data["per_page"]
     page = query_data["page"]
@@ -156,13 +155,13 @@ def agent_info(query_data):
     agent_list = []
     res = da.get_data(data_type="agent", search={"atype": agent_type, "status": status, "idle": idle},
                       offset=(page - 1) * per_page, limit=per_page)
-    res_count = da.count_data(data_type="agent", )
+    res_count = da.count_data(data_type="agent", search={"atype": agent_type, "status": status, "idle": idle})
     for r in res:
         agent = {}
         for key, value in r.items():
             agent[agent_response_map[key]] = value if key != "IPADDR" else str(value).split("|")
         agent_list.append(agent)
-    return {"code": 200, "agent_data": agent_list, "total": 100}
+    return {"code": 200, "agent_data": agent_list, "total": res_count}
 
 
 # 代理信息存储到数据库

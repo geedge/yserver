@@ -31,3 +31,8 @@ typemapping = {
     "status": "int",
     "idle": "int"
 }
+
+# 默认参数
+default_data = {
+    "agent": {"atype": "all", "status": 2, "idle": 2}
+}

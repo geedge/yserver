@@ -168,16 +168,24 @@ class DataHandler:
     # 获取信息(代理、任务)
     # data_type可选范围参照DataHandler.tabmapping的键
     # 若需要按条件检索，则以将检索维度与检索值以字典形式传入search
-    def get_data(self, search: dict, data_type="agent", offset=0, limit=10, ):
+    def get_data(self, search: dict = None, data_type="agent", offset=0, limit=10, count=False):
         # 参数映射到表名
         tabname = model.tabmapping[data_type]
         # 比较输入参数和默认值的差异
-        differ = set(search.items()).difference({"atype": "all", "status": 2, "idle": 2}.items())
+        if search == None:
+            differ = set()
+        else:
+            differ = set(search.items()).difference(model.default_data[data_type].items())
         # 完全一致
         if len(differ) == 0:
-            sql = """SELECT * FROM %s LIMIT %s, %s""" % (tabname, offset, limit)
-            self.cursor.execute(sql)
-            return self.cursor.fetchall()
+            if not count:
+                sql = """SELECT * FROM %s LIMIT %s, %s""" % (tabname, offset, limit)
+                self.cursor.execute(sql)
+                return self.cursor.fetchall()
+            else:
+                sql = """SELECT count(*) FROM %s""" % (tabname)
+                self.cursor.execute(sql)
+                return dict(self.cursor.fetchall()[0]).popitem()[1]
         else:
             l = len(differ)
             # 条件字典
@@ -189,26 +197,21 @@ class DataHandler:
                     condition[tab_key] = "\"" + val + "\""
                 else:
                     condition[tab_key] = str(val)
-            sql = """SELECT * FROM %s WHERE %s LIMIT %s, %s""" % (
-                tabname, " AND ".join(["=".join(condition.popitem()) for _ in range(l)]), offset, limit)
-            print(sql)
-            self.cursor.execute(sql)
-            return self.cursor.fetchall()
+            if not count:
+                sql = """SELECT * FROM %s WHERE %s LIMIT %s, %s""" % (
+                    tabname, " AND ".join(["=".join(condition.popitem()) for _ in range(l)]), offset, limit)
+                print(sql)
+                self.cursor.execute(sql)
+                return self.cursor.fetchall()
+            else:
+                sql = """SELECT count(*) FROM %s WHERE %s LIMIT %s, %s""" % (
+                    tabname, " AND ".join(["=".join(condition.popitem()) for _ in range(l)]), offset, limit)
+                self.cursor.execute(sql)
+                return dict(self.cursor.fetchall()[0]).popitem()[1]
 
     # 统计符合条件的信息数量
-    def count_data(self, data_type="agent", search=None):
-        # 参数映射到表名
-        tabname = model.tabmapping[data_type]
-        if search is None:
-            sql = """SELECT count(*) FROM %s""" % (tabname)
-            self.cursor.execute(sql)
-            return dict(self.cursor.fetchall()[0]).popitem()[1]
-        else:
-            search = dict(search)
-            key, value = search.popitem()
-            sql = """SELECT count(*) FROM %s WHERE %s=%s""" % (tabname, key, value)
-            self.cursor.execute(sql)
-            return dict(self.cursor.fetchall()[0]).popitem()[1]
+    def count_data(self, search: dict = None, data_type="agent"):
+        return self.get_data(search=search, data_type=data_type, count=True)
 
     def count_data_by_time(self, data_type="agent", time=None, search=None):
         tabname = model.tabmapping[data_type]
