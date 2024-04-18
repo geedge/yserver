@@ -179,7 +179,7 @@ class DataHandler:
         # 完全一致
         if len(differ) == 0:
             if not count:
-                sql = """SELECT * FROM %s LIMIT %s, %s""" % (tabname, offset, limit)
+                sql = """SELECT * FROM %s LIMIT %s, %s""" % (tabname, offset, offset + limit)
                 self.cursor.execute(sql)
                 return self.cursor.fetchall()
             else:
@@ -199,7 +199,7 @@ class DataHandler:
                     condition[tab_key] = str(val)
             if not count:
                 sql = """SELECT * FROM %s WHERE %s LIMIT %s, %s""" % (
-                    tabname, " AND ".join(["=".join(condition.popitem()) for _ in range(l)]), offset, limit)
+                    tabname, " AND ".join(["=".join(condition.popitem()) for _ in range(l)]), offset, offset + limit)
                 print(sql)
                 self.cursor.execute(sql)
                 return self.cursor.fetchall()

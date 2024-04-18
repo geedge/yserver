@@ -2,7 +2,7 @@
 import random
 
 from apiflask import APIBlueprint, Schema
-from apiflask.fields import String, Integer, List, Nested, Boolean, DateTime
+from apiflask.fields import String, Integer, List, Nested, Boolean, DateTime, Float
 from apiflask.validators import OneOf
 from flask import request
 
@@ -53,10 +53,23 @@ class agent(Schema):
 
 # 代理注册接口
 @bp.post("/register")
-@bp.doc("代理注册接口", "返回分配给代理的编号值", hide=True)
+@bp.doc("代理注册接口", "返回分配给代理的编号值，用于代理和主控端通信注册，前端界面无需调用")
+@bp.input({
+    "atype": String(),
+    'v6addr': List(String()),
+    'lat': String(),
+    'lng': String(),
+    'cpu_num': Integer(),
+    'ram_size': Integer(),
+    'ram_per': Float(),
+    'sys': String(),
+    "port": Integer()
+}, example={'atype': "gjst", 'v6addr': ["2001::1"], 'lat': "-1.111", 'lng': "1.1111", 'cpu_num': 4,
+            'ram_size': 16, 'ram_per': 0.55,
+            'sys': "linux", "port": 2525})
 # 参数说明
 # 代理类型
-# "type": String(required=True, validate=OneOf(["stgj", "mbgz", "ztgz"])),
+# "type": String(required=True, validate=OneOf(["gjst", "mbgz", "ztgz"])),
 # 代理的通信端口
 # "port": Integer(required=True),
 # # 代理所在的操作系统
@@ -73,8 +86,8 @@ class agent(Schema):
 # "ram_size": Integer(),
 # # 已用内存比例
 # "ram_per": Float()
-def register_agent():
-    data = dict(request.json)
+def register_agent(json_data):
+    data = dict(json_data)
     id = "".join(random.sample('1234567890zyxwvutsrqponmlkjihgfedcba', 8))
     # 代理所有参数
     param = {"id": id,
@@ -83,7 +96,8 @@ def register_agent():
              "lat": data["lat"],
              "lng": data["lng"],
              "cpunum": data["cpu_num"],
-             "mem": str(data["ram_size"]) + "GB" + "(" + str(1 - data["ram_per"]) + "%" + "可用)",
+             "mem": str(data["ram_size"]) + "GB" + "(" + str(
+                 '{:.2f}'.format(100 * (1 - float(data["ram_per"])))) + "%" + "可用)",
              "sys": data["sys"],
              "status": True,
              "idle": True,
