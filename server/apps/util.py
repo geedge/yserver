@@ -8,6 +8,8 @@ from faker.providers import date_time
 from loguru import logger
 from pymysql.cursors import DictCursor
 
+import apps.model as model
+
 
 def debug(message, *args, **kwargs):
     logger.debug(message, *args, **kwargs)
@@ -30,21 +32,6 @@ fake.add_provider(company)
 
 # 数据库访问类
 class DataHandler:
-    # 参数与数据表映射关系
-    tabmapping = {
-        "agent": MYSQL_TAB_AGENT,
-        "task": MYSQL_TAB_TASK,
-        "user": MYSQL_TAB_USER,
-        "target": MYSQL_TAB_TARGETDATA,
-        "syslog": MYSQL_TAB_SYSLOG, }
-
-    # 参数与数据表中时间字段的映射关系
-    timemapping = {
-        "agent": "START_TIME",
-        "task": "CREATED_TIME",
-        "user": "CREATED_TIME",
-        "target": "UPDATED_TIME",
-    }
 
     # 数据库链接及数据库初始化
     def __init__(self):
@@ -195,24 +182,34 @@ class DataHandler:
     # 获取信息(代理、任务)
     # data_type可选范围参照DataHandler.tabmapping的键
     # 若需要按条件检索，则以将检索维度与检索值以字典形式传入search
-    def get_data(self, data_type="agent", offset=0, limit=10, search=None):
+    def get_data(self, search: dict, data_type="agent", offset=0, limit=10, ):
         # 参数映射到表名
-        tabname = self.tabmapping[data_type]
-        if search is None:
+        tabname = model.tabmapping[data_type]
+        # 比较输入参数和默认值的差异
+        differ = set(search.items()).difference({"atype": "all", "status": 2, "idle": 2}.items())
+        # 完全一致
+        if len(differ) == 0:
             sql = """SELECT * FROM %s LIMIT %s, %s""" % (tabname, offset, limit)
             self.cursor.execute(sql)
             return self.cursor.fetchall()
         else:
-            search = dict(search)
-            key, value = search.popitem()
-            sql = """SELECT * FROM %s WHERE %s=%s LIMIT %s, %s""" % (tabname, key, value, offset, limit)
+            l = len(differ)
+            # 条件字典
+            condition = {}
+            for _ in range(l):
+                key, val = differ.pop()
+                tab_key = model.agent_keymapping[key]
+                condition[tab_key] = str(val)
+            sql = """SELECT * FROM %s WHERE %s LIMIT %s, %s""" % (
+                tabname, "AND".join(["=".join(condition.popitem()) for _ in range(l)]), offset, limit)
+            print(sql)
             self.cursor.execute(sql)
             return self.cursor.fetchall()
 
     # 统计符合条件的信息数量
     def count_data(self, data_type="agent", search=None):
         # 参数映射到表名
-        tabname = self.tabmapping[data_type]
+        tabname = model.tabmapping[data_type]
         if search is None:
             sql = """SELECT count(*) FROM %s""" % (tabname)
             self.cursor.execute(sql)
@@ -225,8 +222,8 @@ class DataHandler:
             return dict(self.cursor.fetchall()[0]).popitem()[1]
 
     def count_data_by_time(self, data_type="agent", time=None, search=None):
-        tabname = self.tabmapping[data_type]
-        timename = self.timemapping[data_type]
+        tabname = model.tabmapping[data_type]
+        timename = model.timemapping[data_type]
         key, value = search.popitem()
         sql = """SELECT COUNT(*) FROM %s WHERE
          DATE_FORMAT(%s,'%Y-%m-%d')=%s AND %s=%s""" % (tabname, timename, time, key, value)

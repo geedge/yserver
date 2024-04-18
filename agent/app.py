@@ -19,7 +19,7 @@ app.register_blueprint(scriptbp)
 config = {}
 # 代理类型参数映射表
 atype_map = {
-    "stgj": "渗透攻击",
+    "gjst": "攻击渗透",
     "csgz": "参数感知",
     "ztgz": "状态感知"
 }
@@ -67,7 +67,7 @@ def nodeinfo():
 
 
 # 注册代理
-def registernode(proto="http", port=2525, atype="stgj", server="127.0.0.1:8888"):
+def registernode(proto="http", port=2525, atype="gjst", server="127.0.0.1:8888"):
     info = nodeinfo()
     info["port"] = port
     info["atype"] = atype_map[atype]
@@ -92,8 +92,8 @@ if __name__ == '__main__':
         # 命令行参数设置
         parser = argparse.ArgumentParser()
         parser.add_argument("-p", "--port", type=int, default=2525, help="代理的开放通信端口")
-        parser.add_argument("-t", "--atype", type=str, default="stgj",
-                            help="代理的工作类型 {stgj(渗透攻击) / csgz(参数感知) / ztgz(状态感知)}")
+        parser.add_argument("-t", "--atype", type=str, default="gjst",
+                            help="代理的工作类型 {gjst(攻击渗透) / csgz(参数感知) / ztgz(状态感知)}")
         parser.add_argument("-s", "--server", type=str, default="127.0.0.1:8888", help="主控端访问地址+端口号")
 
         # 解析参数

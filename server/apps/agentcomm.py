@@ -12,24 +12,17 @@ from .util import da
 bp = APIBlueprint("代理管理接口集合", __name__, url_prefix="/agent")
 
 # 代理类型
-agent_type = ["渗透攻击", "状态感知", "参数感知"]
+agent_type = ["攻击渗透", "状态感知", "参数感知"]
 
+# 代理选项参数和代理类型的映射关系
+agent_key_map = {"gjst": agent_type[0], "ztgz": agent_type[1], "csgz": agent_type[2]}
 
-class agent(Schema):
-    id = String()
-    ipaddr = List(String())
-    atype = String(validate=OneOf(agent_type))
-    status = Boolean()
-    idle = Boolean()
-    port = Integer()
-    sys = String()
-    cpu_num = Integer()
-    mem = String()
-    start_time = DateTime()
-
+# 状态选项参数和值的映射关系
+status_map = {1: True, 0: False}
+idle_map = {1: True, 0: False}
 
 # 数据库列与返回值的键对应关系
-agent_map = {
+agent_response_map = {
     "AGENT_ID": "id",
     "IPADDR": "ipaddr",
     "START_TIME": "start_time",
@@ -43,6 +36,19 @@ agent_map = {
     "IDLE": "idle",
     "MEM": "mem"
 }
+
+
+class agent(Schema):
+    id = String()
+    ipaddr = List(String())
+    atype = String(validate=OneOf(agent_type))
+    status = Boolean()
+    idle = Boolean()
+    port = Integer()
+    sys = String()
+    cpu_num = Integer()
+    mem = String()
+    start_time = DateTime()
 
 
 # 代理注册接口
@@ -127,9 +133,9 @@ def task_ret(json_data):
                                         + "status:当前状态，可选参数范围及对应含义为：2-全部(默认)，1-在线，0-离线 </br>"
                                         + "idle:是否空闲，可选参数范围及对应含义为：2-全部(默认)，1-空闲，0-执行中 </br>")
 @bp.input({
-    "atype": String(load_default="all"),
-    "status": Integer(validate=OneOf([0, 1, 2])),
-    "idle": Integer(validate=OneOf([0, 1, 2])),
+    "atype": String(load_default="all", validate=OneOf(["all", "gjst", "ztgz", "csgz"])),
+    "status": Integer(load_default=2, validate=OneOf([0, 1, 2])),
+    "idle": Integer(load_default=2, validate=OneOf([0, 1, 2])),
     "page": Integer(load_default=1),
     "per_page": Integer(load_default=10)
 }, location="query")
@@ -142,12 +148,19 @@ def task_ret(json_data):
 def agent_info(query_data):
     per_page = query_data["per_page"]
     page = query_data["page"]
+    agent_type = query_data["atype"]
+    status = query_data["status"]
+    idle = query_data["idle"]
+
+    # 代理信息列表
     agent_list = []
-    res = da.get_data(data_type="agent", offset=(page - 1) * per_page, limit=per_page)
+    res = da.get_data(data_type="agent", search={"atype": agent_type, "status": status, "idle": idle},
+                      offset=(page - 1) * per_page, limit=per_page)
+    res_count = da.count_data(data_type="agent", )
     for r in res:
         agent = {}
         for key, value in r.items():
-            agent[agent_map[key]] = value if key != "IPADDR" else str(value).split("|")
+            agent[agent_response_map[key]] = value if key != "IPADDR" else str(value).split("|")
         agent_list.append(agent)
     return {"code": 200, "agent_data": agent_list, "total": 100}
 
