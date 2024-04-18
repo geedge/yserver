@@ -9,20 +9,6 @@ from loguru import logger
 from pymysql.cursors import DictCursor
 
 import apps.model as model
-
-
-def debug(message, *args, **kwargs):
-    logger.debug(message, *args, **kwargs)
-
-
-def info(message, *args, **kwargs):
-    logger.info(message, *args, **kwargs)
-
-
-def error(message, *args, **kwargs):
-    logger.error(message, *args, **kwargs)
-
-
 from settings import *
 
 fake = Faker("zh_CN")
@@ -199,9 +185,12 @@ class DataHandler:
             for _ in range(l):
                 key, val = differ.pop()
                 tab_key = model.agent_keymapping[key]
-                condition[tab_key] = str(val)
+                if model.typemapping[key] == "str":
+                    condition[tab_key] = "\"" + val + "\""
+                else:
+                    condition[tab_key] = str(val)
             sql = """SELECT * FROM %s WHERE %s LIMIT %s, %s""" % (
-                tabname, "AND".join(["=".join(condition.popitem()) for _ in range(l)]), offset, limit)
+                tabname, " AND ".join(["=".join(condition.popitem()) for _ in range(l)]), offset, limit)
             print(sql)
             self.cursor.execute(sql)
             return self.cursor.fetchall()
@@ -232,3 +221,15 @@ class DataHandler:
 
 
 da = DataHandler()
+
+
+def debug(message, *args, **kwargs):
+    logger.debug(message, *args, **kwargs)
+
+
+def info(message, *args, **kwargs):
+    logger.info(message, *args, **kwargs)
+
+
+def error(message, *args, **kwargs):
+    logger.error(message, *args, **kwargs)

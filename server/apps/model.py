@@ -25,3 +25,9 @@ agent_keymapping = bidict({
     "status": "STATUS",
     "idle": "IDLE"
 })
+
+typemapping = {
+    "atype": "str",
+    "status": "int",
+    "idle": "int"
+}
