@@ -183,13 +183,14 @@ def agent_info(query_data):
 # TODO: 实现
 def del_agent(json_data):
     print(json_data)
-    sql = """DELETE FROM %s WHERE id = %s
+    sql = """DELETE FROM %s WHERE AGENT_ID = '%s'
     """ % (MYSQL_TAB_AGENT, json_data["id"])
     try:
         da.cursor.execute(sql)
         da.conn.commit()
     except Exception as e:
         error(message=str(e))
+        return {"code": 500, "msg": str(e)}
     return {"code": 200, "msg": "ok"}
 
 
@@ -219,6 +220,9 @@ def insert_agent(param: dict):
             %(status)s,
             %(mem)s,
             %(idle)s);""" % param
-    da.cursor.execute(sql)
-    da.conn.commit()
+    try:
+        da.cursor.execute(sql)
+        da.conn.commit()
+    except Exception as e:
+        error(message=str(e))
     return None
