@@ -99,11 +99,13 @@ def register_agent():
     err = insert_agent(param)
     if not err:
         return {"id": id}
+    else:
+        return {"code": 500, "err": err}
 
 
 # 代理任务下发
+# TODO:具体实现
 def deliver_task(agent_id, policy, policy_param):
-    # TODO:具体实现
     # 查询agent_id对应代理的ip和端口信息
     # 将policy和policy_param作为参数传递到对应接口
     pass
@@ -180,7 +182,6 @@ def agent_info(query_data):
     "code": Integer(),
     "msg": String()
 })
-# TODO: 实现
 def del_agent(json_data):
     print(json_data)
     sql = """DELETE FROM %s WHERE AGENT_ID = '%s'
@@ -225,4 +226,5 @@ def insert_agent(param: dict):
         da.conn.commit()
     except Exception as e:
         error(message=str(e))
+        return e
     return None
