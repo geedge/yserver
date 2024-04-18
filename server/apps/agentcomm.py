@@ -92,8 +92,10 @@ def register_agent():
              }
     # 对字符串值进行处理
     param = string_to_mysql(param)
+    # 数据库表名
     param["tab"] = MYSQL_TAB_AGENT
-    print(param)
+
+    # 插入记录
     err = insert_agent(param)
     if not err:
         return {"id": id}
@@ -217,7 +219,6 @@ def insert_agent(param: dict):
             %(status)s,
             %(mem)s,
             %(idle)s);""" % param
-    print(sql)
     da.cursor.execute(sql)
     da.conn.commit()
     return None
