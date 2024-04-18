@@ -226,6 +226,17 @@ class DataHandler:
 da = DataHandler()
 
 
+# 将插入mysql中的字符串处理为满足mysql形式的单引号字符串，输入为字典形式
+def string_to_mysql(data: dict):
+    res = {}
+    for key, val in data.items():
+        if type(val) == type("text"):
+            res[key] = "\'" + val + "\'"
+        else:
+            res[key] = val
+    return res
+
+
 def debug(message, *args, **kwargs):
     logger.debug(message, *args, **kwargs)
 

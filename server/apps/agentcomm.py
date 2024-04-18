@@ -7,7 +7,7 @@ from apiflask.validators import OneOf
 from flask import request
 
 from settings import *
-from .util import da
+from .util import da, error, string_to_mysql
 
 bp = APIBlueprint("代理管理接口集合", __name__, url_prefix="/agent")
 
@@ -78,18 +78,22 @@ def register_agent():
     id = "".join(random.sample('1234567890zyxwvutsrqponmlkjihgfedcba', 8))
     # 代理所有参数
     param = {"id": id,
-             "ipaddr": (request.remote_addr).join(("|" + i) for i in data["v6addr"]),
-             "start_time": str(datetime.datetime.now()),
+             "ipaddr": "|".join([request.remote_addr] + [i for i in data["v6addr"]]),
+             # "start_time",在数据库中实现
              "lat": data["lat"],
              "lng": data["lng"],
              "cpunum": data["cpu_num"],
-             "mem": data["ram_size"] + "GB" + "(" + {1 - data["ram_per"]} + "%" + "可用)",
+             "mem": str(data["ram_size"]) + "GB" + "(" + str(1 - data["ram_per"]) + "%" + "可用)",
              "sys": data["sys"],
              "status": True,
              "idle": True,
              "port": data["port"],
              "atype": data["atype"],
              }
+    # 对字符串值进行处理
+    param = string_to_mysql(param)
+    param["tab"] = MYSQL_TAB_AGENT
+    print(param)
     err = insert_agent(param)
     if not err:
         return {"id": id}
@@ -164,37 +168,6 @@ def agent_info(query_data):
     return {"code": 200, "agent_data": agent_list, "total": res_count}
 
 
-# 代理信息存储到数据库
-def insert_agent(param: dict):
-    sql = """REPLACE INTO %s(AGENT_ID,IPADDR,
-            CREATED_TIME,
-            LAT,
-            LNG ,
-            AGENT_TYPE,
-            SYS ,
-            PORT ,
-            CPU_NUM ,
-            STATUS ,
-            RAM_SIZE ,
-            WORK_STATUS) VALUES(
-                %(id)s,
-                %(ipaddr)s,
-                %(create_time)s,
-                %(lat)s,
-                %(lng)s,
-                %(atype)s,
-                %(sys)s,
-                %(port)s,
-                %(cpunum)s,
-                %(status)s,
-                %(mem)s,
-                %(work_status)s)
-            )""" % param
-    da.cursor.execute(sql)
-    da.conn.commit()
-    return None
-
-
 @bp.doc("代理删除接口", "输入参数说明：</br>"
         + "id: 代理编号")
 @bp.post("/del")
@@ -208,4 +181,43 @@ def insert_agent(param: dict):
 # TODO: 实现
 def del_agent(json_data):
     print(json_data)
+    sql = """DELETE FROM %s WHERE id = %s
+    """ % (MYSQL_TAB_AGENT, json_data["id"])
+    try:
+        da.cursor.execute(sql)
+        da.conn.commit()
+    except Exception as e:
+        error(message=str(e))
     return {"code": 200, "msg": "ok"}
+
+
+# 代理信息存储到数据库
+def insert_agent(param: dict):
+    sql = """REPLACE INTO %(tab)s(
+            AGENT_ID,
+            IPADDR,
+            LAT,
+            LNG ,
+            AGENT_TYPE,
+            SYS ,
+            PORT ,
+            CPU_NUM ,
+            STATUS ,
+            MEM,
+            IDLE) 
+            VALUES(
+            %(id)s,
+            %(ipaddr)s,
+            %(lat)s,
+            %(lng)s,
+            %(atype)s,
+            %(sys)s,
+            %(port)s,
+            %(cpunum)s,
+            %(status)s,
+            %(mem)s,
+            %(idle)s);""" % param
+    print(sql)
+    da.cursor.execute(sql)
+    da.conn.commit()
+    return None

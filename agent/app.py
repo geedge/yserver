@@ -100,8 +100,8 @@ if __name__ == '__main__':
         args = parser.parse_args()
 
         # 注册代理，并获取主控分配的代理编号
-        id = registernode(port=args.port, server=args.server, atype=args.type)
-        config = {"id": id, "port": args.port, "atype": args.type, "server": args.server}
+        id = registernode(port=args.port, server=args.server, atype=args.atype)
+        config = {"id": id, "port": args.port, "atype": args.atype, "server": args.server}
 
         # 配置写入yaml文件存储
         with open('config.yaml', 'w') as f:
