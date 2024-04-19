@@ -9,7 +9,7 @@ from apiflask.fields import Integer, String, List, Nested, IP, DateTime, Dict
 from apiflask.validators import OneOf
 from requests.exceptions import Timeout
 
-from apps.util import fake
+from .util import fake
 
 bp = APIBlueprint("目标信息及状态接口集合", __name__, url_prefix="/target")
 
@@ -320,6 +320,7 @@ def map_info(query_data):
                     value_list[1]) + "，DoH：" + str(value_list[2]) + "，DoT：" + str(value_list[3]) + "}",
                 "value": sum(value_list),
             })
+        fake.unique.clear()
         return {"code": 200, "dataObject": {"earthAddTitle": cou_list}}
     # 查询目标
     else:
