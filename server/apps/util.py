@@ -192,11 +192,24 @@ class DataHandler:
             condition = {}
             for _ in range(l):
                 key, val = differ.pop()
-                tab_key = model.agent_keymapping[key]
-                if model.typemapping[key] == "str":
-                    condition[tab_key] = "\"" + val + "\""
+                # target表的协议参数和 ip 单独处理
+                if data_type == "target" and key == "proto":
+                    tab_key = model.keymapping[data_type][val]
+                    condition[tab_key] = True
+                if data_type == "target" and key == "ip":
+                    if "." in val:
+                        condition["ADDRv4"] = "\"" + val + "\""
+                    elif ":" in val:
+                        condition["ADDRv6"] = "\"" + val + "\""
+                    else:
+                        error("错误的地址输入：  " + str(val))
                 else:
-                    condition[tab_key] = str(val)
+                    # 参数在数据表中对应的字段名
+                    tab_key = model.keymapping[data_type][key]
+                    if model.typemapping[key] == "str":
+                        condition[tab_key] = "\"" + val + "\""
+                    else:
+                        condition[tab_key] = str(val)
             if not count:
                 sql = """SELECT * FROM %s WHERE %s LIMIT %s, %s""" % (
                     tabname, " AND ".join(["=".join(condition.popitem()) for _ in range(l)]), offset, offset + limit)

@@ -217,9 +217,9 @@ def record(query_data):
 @bp.get("/")
 @bp.doc("(表格)目标信息获取接口", "返回目标信息")
 @bp.input({
-    "protocol": String(validate=OneOf(['IPv6', 'DNSSEC', "DoH", "DoT"])),
-    "cou": String(),
-    "isp": String(),
+    "protocol": String(load_default=None, validate=OneOf(['IPv6', 'DNSSEC', "DoH", "DoT"])),
+    "cou": String(load_default=None),
+    "isp": String(load_default=None),
     "per_page": Integer(load_default=10),
     "page": Integer(load_default=1),
     "ip": IP(load_default=None)
@@ -232,16 +232,24 @@ def record(query_data):
 def target_info(query_data):
     per_page = query_data["per_page"]
     page = query_data["page"]
+    proto = query_data["protocol"]
+    cou = query_data["cou"]
+    isp = query_data["isp"]
+    ip = query_data["ip"]
+
+    # 目标信息列表
     target_list = []
 
-    if query_data["ip"] is None:
+    if ip is None:
         # 普通检索
-        res = da.get_data(data_type="target", offset=(page - 1) * per_page, limit=per_page)
+        res = da.get_data(data_type="target", search={"proto": proto, "cou": cou, "isp": isp},
+                          offset=(page - 1) * per_page, limit=per_page)
+        res_count = da.count_data(data_type="target", search={"proto": proto, "cou": cou, "isp": isp})
     else:
         # 查询目标
         res = da.get_data(data_type="target", offset=(page - 1) * per_page, limit=per_page,
                           search={"ip": query_data["ip"]})
-
+        res_count = 1
     # 结果转换
     for r in res:
         target = {}
@@ -260,8 +268,7 @@ def target_info(query_data):
             # 原数据的值赋给经过映射之后的键
             target[target_map[k]] = r[k]
         target_list.append(target)
-    # TODO:total
-    return {"code": 200, "data": target_list}
+    return {"code": 200, "data": target_list, "total": res_count}
 
 
 @bp.get("/filter")

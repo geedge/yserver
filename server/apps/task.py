@@ -6,9 +6,22 @@ from apiflask import APIBlueprint, Schema
 from apiflask.fields import String, Integer, IP, DateTime, List, Nested
 from apiflask.validators import OneOf
 
-from .util import fake
+from .util import fake, da
 
 bp = APIBlueprint("任务管理接口集合", __name__, url_prefix="/task")
+
+# 数据库列与返回值的键对应关系
+task_response_map = {
+    "TASK_ID": "id",
+    "TARGET_IP": "target",
+    "TASK_NAME": "name",
+    "AGENT_ID": "agent",
+    "TARGET_DOMAIN": "target_domain",
+    "TARGET_RR": "target_rr",
+    "POLICY": "policy",
+    "CREATE_TIME": "create_time",
+    "STATUS": "status",
+}
 
 
 class Task(Schema):
@@ -122,20 +135,20 @@ def ops_task(json_data):
 })
 # TODO：查询任务状态接口具体实现
 def tasks_state(query_data):
+    per_page = query_data["per_page"]
+    page = query_data["page"]
+
+    # 任务列表
     task_list = []
-    for _ in range(query_data["per_page"]):
-        task_list.append({
-            "id": fake.random.randint(1, 10000),
-            "target": fake.ipv4(),
-            "name": "示例任务",
-            "agent": fake.random.randint(1, 10000),
-            "target_domain": fake.domain_name(),
-            "target_rr": "NS attack.com",
-            "policy": random.choice(["auto", "ddos", "sjqp"]),
-            "create_time": fake.date_time_between(start_date="-1y"),
-            "status": random.choice(["working", "stop", "finish"])
-        })
-    return {"code": 200, "data": task_list}
+    res = da.get_data(data_type="task",
+                      offset=(page - 1) * per_page, limit=per_page)
+    res_count = da.count_data(data_type="task")
+    for r in res:
+        task = {}
+        for key, value in r.items():
+            task[task_response_map[key]] = value
+        task_list.append(task)
+    return {"code": 200, "data": task_list, "total": res_count}
 
 
 # 任务详情接口

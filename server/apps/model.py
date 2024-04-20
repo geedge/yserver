@@ -19,12 +19,21 @@ timemapping = {
     "target": "UPDATED_TIME",
 }
 
-#
-agent_keymapping = bidict({
-    "atype": "AGENT_TYPE",
-    "status": "STATUS",
-    "idle": "IDLE"
-})
+# 不同接口的参数（或值）和对应数据表字段的映射关系
+keymapping = {
+    "agent": bidict({
+        "atype": "AGENT_TYPE",
+        "status": "STATUS",
+        "idle": "IDLE"
+    }),
+    "target": bidict({
+        "cou": "COU",
+        "isp": "ISP",
+        "IPv6": "IPv6",
+        "DNSSEC": "DNSSEC",
+        "DoH": "DOH",
+        "DoT": "DOT",
+    })}
 
 typemapping = {
     "atype": "str",
@@ -34,5 +43,6 @@ typemapping = {
 
 # 默认参数
 default_data = {
-    "agent": {"atype": "all", "status": 2, "idle": 2}
+    "agent": {"atype": "all", "status": 2, "idle": 2},
+    "target": {"proto": None, "isp": None, "cou": None}
 }
