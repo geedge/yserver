@@ -8,6 +8,7 @@ from apiflask import APIBlueprint, Schema
 from apiflask.fields import Integer, String, List, Nested, IP, DateTime, Dict
 from requests.exceptions import Timeout
 
+from settings import *
 from .util import da, debug
 
 bp = APIBlueprint("目标信息及状态接口集合", __name__, url_prefix="/target")
@@ -240,15 +241,22 @@ def target_info(query_data):
     # 目标信息列表
     target_list = []
 
+    # 普通检索，默认所有条件为单选
     if ip is None:
-        # 普通检索
-        res = da.get_data(data_type="target", search={"proto": proto, "cou": cou, "isp": isp},
-                          offset=(page - 1) * per_page, limit=per_page)
-        res_count = da.count_data(data_type="target", search={"proto": proto, "cou": cou, "isp": isp})
+        # 无协议筛选
+        if proto == None:
+            res = da.get_data(data_type="target", search={"proto": proto, "cou": cou, "isp": isp},
+                              offset=(page - 1) * per_page, limit=per_page)
+            res_count = da.count_data(data_type="target", search={"proto": proto, "cou": cou, "isp": isp})
+        # 协议筛选，填入筛选的协议
+        else:
+            res = da.get_data(data_type="target", search={proto: True, "cou": cou, "isp": isp},
+                              offset=(page - 1) * per_page, limit=per_page)
+            res_count = da.count_data(data_type="target", search={proto: True, "cou": cou, "isp": isp})
     else:
-        # 查询目标
-        res = da.get_data(data_type="target", offset=(page - 1) * per_page, limit=per_page,
-                          search={"ip": query_data["ip"]})
+        # 查询目标，根据v4、v6地址分类
+        res = da.get_data(data_type="target",
+                          search={"ADDRv4": ip} if "." in str(ip) else {"ADDRv6": ip})
         res_count = 1
     # 结果转换
     for r in res:
@@ -282,7 +290,13 @@ def target_info(query_data):
 # TODO：实现
 def filter_info():
     proto = ["IPv6", "DNSSEC", "DoH", "DoT"]
-    isp = ["google", "cloudflare", "阿里云", "DNSPod", "quad9"]
+    isp_sql = """SELECT DISTINCT ISP from %s """ % MYSQL_TAB_TARGETDATA
+    # 执行查询
+    da.cursor.execute(isp_sql)
+    isp_data = da.cursor.fetchall()
+    # TODO：测试
+    isp = [i[0] for i in isp_data]
+
     cou = ["美国", "中国", "日本", "澳大利亚", "新加坡"]
     return {"code": 200, "proto": proto, "isp": isp, "cou": cou}
 

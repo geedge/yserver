@@ -33,12 +33,24 @@ keymapping = {
         "DNSSEC": "DNSSEC",
         "DoH": "DOH",
         "DoT": "DOT",
+        "ADDRv4": "ADDRv4",
+        "ADDRv6": "ADDRv6"
     })}
 
+# 所有参数在数据库中对应的数据类型，用于拼接sql语句时特殊处理
 typemapping = {
     "atype": "str",
     "status": "int",
-    "idle": "int"
+    "idle": "int",
+    "cou": "str",
+    "isp": "str",
+    "ip": "str",
+    "IPv6": "int",
+    "DNSSEC": "int",
+    "DoH": "int",
+    "DoT": "int",
+    "ADDRv4": "str",
+    "ADDRv6": "str"
 }
 
 # 默认参数
