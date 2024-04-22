@@ -61,6 +61,16 @@ class DelayOut(Schema):
     delay_data = List(Nested(Delay()))
 
 
+# 地图统计信息返回结构体
+class CouInfo(Schema):
+    # 国家名称
+    name = String()
+    # 不同协议的解析器详细数量说明
+    title = String()
+    # 总数量
+    value = Integer()
+
+
 @bp.get("/delay/<string:type>")
 @bp.doc("获取每个节点的时延数据", "type参数为{icmp,dns,tcp}中的一个", hide=True)
 @bp.input({"ip": IP(required=False)}, location="query")
@@ -306,13 +316,85 @@ def filter_info():
 
 
 @bp.get("/map")
-@bp.doc("地图信息获取接口", hide=True)
+@bp.doc("地图信息获取接口")
+@bp.input({
+    "protocol": String(load_default=None, validate=OneOf(['IPv6', 'DNSSEC', "DoH", "DoT"])),
+    "cou": String(load_default=None),
+    "isp": String(load_default=None),
+    "ip": IP(load_default=None)
+}, location="query")
 @bp.output({
     "code": Integer(),
-    "proto": List(String()),
-    "isp": List(String()),
-    "cou": List(String())
+    "dataObject": Dict(String(load_default="earthAddTitle"), List(Nested(CouInfo()))),
 })
 def map_info(query_data):
-    # TODO:实现
-    return {"code": 200}
+    ip = query_data["ip"]
+    proto = query_data["protocol"]
+    cou = query_data["cou"]
+    isp = query_data["isp"]
+
+    if ip is None:
+        cou_list = []
+        # 比较和默认参数值不同的参数
+        differ = set({"proto": proto, "cou": cou, "isp": isp}.items()).difference(
+            {"proto": None, "cou": None, "isp": None}.items())
+        if differ == set():
+            # 在数据表中进行分组查询,无额外筛选
+            sql = """
+                SELECT T.COU,sum(T.c) as R,sum(T.dnssec) as DNSSEC,sum(T.v6) as IPv6,sum(T.dh) as DoH,sum(T.dt) as DoT 
+                FROM
+                (SELECT COU,count(*) as c,count(DNSSEC=1 or null) as dnssec,count(IPv6=1 or null) as v6,count(DOH=1 or null) as dh,count(DOT=1 or null) as dt
+                FROM %s 
+                GROUP BY COU,DNSSEC,IPv6,DOH,DOT) as T GROUP BY T.COU;""" % (MYSQL_TAB_TARGETDATA)
+        else:
+            l = len(differ)
+            # 条件字典
+            condition = {}
+            for _ in range(l):
+                key, val = differ.pop()
+                # 协议参数在数据表中对应的字段名
+                if key == "proto":
+                    condition[{'IPv6': "IPv6", "DNSSEC": "DNSSEC", "DoH": "DOH", "DoT": "DOT"}[val]] = str(True)
+                else:
+                    # 国家和isp属性的键只需调整字母为大写
+                    key = key.upper()
+                    condition[key] = "\"".join(["", str(val), ""])
+            # 在数据表中进行分组查询,无额外筛选
+            sql = """
+                SELECT T.COU,sum(T.c) as R,sum(T.dnssec) as DNSSEC,sum(T.v6) as IPv6,sum(T.dh) as DoH,sum(T.dt) as DoT 
+                FROM
+                (SELECT COU,count(*) as c,count(DNSSEC=1 or null) as dnssec,count(IPv6=1 or null) as v6,count(DOH=1 or null) as dh,count(DOT=1 or null) as dt
+                FROM %s 
+                WHERE %s 
+                GROUP BY COU,DNSSEC,IPv6,DOH,DOT) as T GROUP BY T.COU;""" % (
+                MYSQL_TAB_TARGETDATA, " AND ".join(["=".join(condition.popitem()) for _ in range(l)]))
+
+        # 执行查询
+        da.cursor.execute(sql)
+        data = da.cursor.fetchall()
+        for d in data:
+            # 单一国家的数据
+            value = [d['IPv6'], d['DNSSEC'], d['DoH'], d['DoT']]
+            cou_data = {
+                "name": d['COU'],
+                'title': "支持各类协议的解析器数量为：{IPv6：" + str(d['IPv6']) + "，DNSSEC：" + str(
+                    d['DNSSEC']) + "，DoH：" + str(d['DoH']) + "，DoT：" + str(d['DoT']) + "}",
+                "value": d['R']
+            }
+            cou_list.append(cou_data)
+
+        return {"code": 200, "dataObject": {"earthAddTitle": cou_list}}
+        # 查询目标
+    else:
+        # 查询目标，根据v4、v6地址分类
+        res = da.get_data(data_type="target",
+                          search={"ADDRv4": ip} if "." in str(ip) else {"ADDRv6": ip})
+        # 支持协议
+        proto = []
+        for p in ["IPv6", "DNSSEC", "DOH", "DOT"]:
+            if res[0][p]:
+                proto.append(p)
+        target = [{"name": res[0]["COU"],
+                   "title": "该解析器支持：" + '、'.join(proto) + " 协议",
+                   "value": 1, }]
+        return {"code": 200, "dataObject": {"earthAddTitle": target}}
