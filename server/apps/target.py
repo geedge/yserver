@@ -287,17 +287,21 @@ def target_info(query_data):
     "isp": List(String()),
     "cou": List(String())
 })
-# TODO：实现
 def filter_info():
     proto = ["IPv6", "DNSSEC", "DoH", "DoT"]
+    # 查询所有的isp
     isp_sql = """SELECT DISTINCT ISP from %s """ % MYSQL_TAB_TARGETDATA
     # 执行查询
     da.cursor.execute(isp_sql)
     isp_data = da.cursor.fetchall()
-    # TODO：测试
-    isp = [i[0] for i in isp_data]
+    isp = [i.popitem()[1] for i in isp_data]
 
-    cou = ["美国", "中国", "日本", "澳大利亚", "新加坡"]
+    # 查询所有的国家
+    cou_sql = """SELECT DISTINCT COU from %s """ % MYSQL_TAB_TARGETDATA
+    # 执行查询
+    da.cursor.execute(cou_sql)
+    cou_data = da.cursor.fetchall()
+    cou = [i.popitem()[1] for i in cou_data]
     return {"code": 200, "proto": proto, "isp": isp, "cou": cou}
 
 
