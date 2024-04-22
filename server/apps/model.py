@@ -1,0 +1,60 @@
+# 记录参数值和数据库表字段名之间的双向映射
+from bidict import bidict
+
+from settings import *
+
+# 参数与数据表映射关系
+tabmapping = bidict({
+    "agent": MYSQL_TAB_AGENT,
+    "task": MYSQL_TAB_TASK,
+    "user": MYSQL_TAB_USER,
+    "target": MYSQL_TAB_TARGETDATA,
+    "syslog": MYSQL_TAB_SYSLOG, })
+
+# 参数与数据表中时间字段的映射关系
+timemapping = {
+    "agent": "START_TIME",
+    "task": "CREATED_TIME",
+    "user": "CREATED_TIME",
+    "target": "UPDATED_TIME",
+}
+
+# 不同接口的参数（或值）和对应数据表字段的映射关系
+keymapping = {
+    "agent": bidict({
+        "atype": "AGENT_TYPE",
+        "status": "STATUS",
+        "idle": "IDLE"
+    }),
+    "target": bidict({
+        "cou": "COU",
+        "isp": "ISP",
+        "IPv6": "IPv6",
+        "DNSSEC": "DNSSEC",
+        "DoH": "DOH",
+        "DoT": "DOT",
+        "ADDRv4": "ADDRv4",
+        "ADDRv6": "ADDRv6"
+    })}
+
+# 所有参数在数据库中对应的数据类型，用于拼接sql语句时特殊处理
+typemapping = {
+    "atype": "str",
+    "status": "int",
+    "idle": "int",
+    "cou": "str",
+    "isp": "str",
+    "ip": "str",
+    "IPv6": "int",
+    "DNSSEC": "int",
+    "DoH": "int",
+    "DoT": "int",
+    "ADDRv4": "str",
+    "ADDRv6": "str"
+}
+
+# 默认参数
+default_data = {
+    "agent": {"atype": "all", "status": 2, "idle": 2},
+    "target": {"proto": None, "isp": None, "cou": None}
+}

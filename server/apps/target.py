@@ -1,5 +1,4 @@
 # 目标状态感知
-import random
 # 时延测试接口
 import threading
 
@@ -9,13 +8,24 @@ from apiflask import APIBlueprint, Schema
 from apiflask.fields import Integer, String, List, Nested, IP, DateTime, Dict
 from requests.exceptions import Timeout
 
-from apps.util import fake
+from settings import *
+from .util import da, debug
 
 bp = APIBlueprint("目标信息及状态接口集合", __name__, url_prefix="/target")
 
 icmp_delaytable = {}
 tcp_delaytable = {}
 dns_delaytable = {}
+
+target_map = {
+    "ADDRv4": "ipv4",
+    "ADDRv6": "ipv6",
+    "COU": "cou",
+    "ISP": "isp",
+    "LAT": "lat",
+    "LNG": "lng",
+    "UPDATED_TIME": "time"
+}
 
 
 class Target(Schema):
@@ -51,11 +61,22 @@ class DelayOut(Schema):
     delay_data = List(Nested(Delay()))
 
 
+# 地图统计信息返回结构体
+class CouInfo(Schema):
+    # 国家名称
+    name = String()
+    # 不同协议的解析器详细数量说明
+    title = String()
+    # 总数量
+    value = Integer()
+
+
 @bp.get("/delay/<string:type>")
 @bp.doc("获取每个节点的时延数据", "type参数为{icmp,dns,tcp}中的一个", hide=True)
 @bp.input({"ip": IP(required=False)}, location="query")
 @bp.output(DelayOut)
 def get_pernode_delay(query_data, type):
+    # TODO:节点选择
     addr = ""
     if 'ip' in query_data.keys():
         addr = query_data['ip']
@@ -154,10 +175,8 @@ def dns_delay_query(target, addr):
 # 状态感知——DNS记录测试接口
 import dns.nameserver
 from apiflask.fields import String
-from apiflask.validators import OneOf
+from apiflask.validators import OneOf, ContainsOnly
 from dns import resolver
-
-rrest_key = "rrset"
 
 
 @bp.get("/check")
@@ -169,7 +188,7 @@ rrest_key = "rrset"
 }, location='query')
 @bp.output({
     "code": Integer(),
-    "ans": List(Dict(String(validate=OneOf([rrest_key])), String()))
+    "ans": List(Dict(String(validate=ContainsOnly(["rrset"])), String()))
 })
 def record(query_data):
     # 特殊协议头
@@ -202,52 +221,180 @@ def record(query_data):
     myAnswers = myResolver.resolve(domain, qtype)
     if myAnswers.rrset is not None:
         for r in myAnswers.rrset:
-            ans.append({rrest_key: str(r)})
+            ans.append({"rrset": str(r)})
     return {"code": 200, 'ans': ans}
 
 
 @bp.get("/")
-@bp.doc("目标信息获取接口", "返回目标信息")
+@bp.doc("(表格)目标信息获取接口", "返回目标信息")
 @bp.input({
+    "protocol": String(load_default=None, validate=OneOf(['IPv6', 'DNSSEC', "DoH", "DoT"])),
+    "cou": String(load_default=None),
+    "isp": String(load_default=None),
     "per_page": Integer(load_default=10),
     "page": Integer(load_default=1),
     "ip": IP(load_default=None)
 }, location='query')
 @bp.output({
     "code": Integer(),
-    "data": List(Nested(Target()))
+    "data": List(Nested(Target())),
+    "total": Integer()
 })
 def target_info(query_data):
-    # 普通检索
-    if query_data["ip"] is None:
-        per_page = query_data["per_page"]
-        target_list = []
+    per_page = query_data["per_page"]
+    page = query_data["page"]
+    proto = query_data["protocol"]
+    cou = query_data["cou"]
+    isp = query_data["isp"]
+    ip = query_data["ip"]
 
-        for _ in range(per_page):
-            lat, lng, _, cou, _ = fake.location_on_land()
-            target_list.append({
-                "ipv4": fake.ipv4_public(),
-                "ipv6": fake.ipv6(),
-                "protocol": random.choices(["IPv6", "DNSSEC", "DoH", "DoT"], k=random.randint(1, 4)),
-                "protect": random.choices(["0x20", "端口随机化", "请求最小化", "DNSSEC验证"], k=random.randint(1, 4)),
-                "cou": cou,
-                "lat": lat,
-                "lng": lng,
-                "isp": fake.company(),
-                "time": fake.date_time_between('-2y'),
-            })
-        return {"code": 200, "data": target_list}
-    # 查询目标
+    # 目标信息列表
+    target_list = []
+
+    # 普通检索，默认所有条件为单选
+    if ip is None:
+        # 无协议筛选
+        if proto == None:
+            res = da.get_data(data_type="target", search={"proto": proto, "cou": cou, "isp": isp},
+                              offset=(page - 1) * per_page, limit=per_page)
+            res_count = da.count_data(data_type="target", search={"proto": proto, "cou": cou, "isp": isp})
+        # 协议筛选，填入筛选的协议
+        else:
+            res = da.get_data(data_type="target", search={proto: True, "cou": cou, "isp": isp},
+                              offset=(page - 1) * per_page, limit=per_page)
+            res_count = da.count_data(data_type="target", search={proto: True, "cou": cou, "isp": isp})
     else:
-        lat, lng, _, cou, _ = fake.location_on_land()
-        target = [{"ipv4": query_data["ip"],
-                   "ipv6": fake.ipv6(),
-                   "protocol": random.choices(["IPv6", "DNSSEC", "DoH", "DoT"], k=random.randint(1, 4)),
-                   "protect": random.choices(["0x20", "端口随机化", "请求最小化", "DNSSEC验证"],
-                                             k=random.randint(1, 4)),
-                   "cou": cou,
-                   "lat": lat,
-                   "lng": lng,
-                   "isp": fake.company(),
-                   "time": fake.date_time_between('-2y'), }]
-        return {"code": 200, "data": target}
+        # 查询目标，根据v4、v6地址分类
+        res = da.get_data(data_type="target",
+                          search={"ADDRv4": ip} if "." in str(ip) else {"ADDRv6": ip})
+        res_count = 1
+    # 结果转换
+    for r in res:
+        target = {}
+        # 支持的协议特殊处理
+        protocol = []
+        for k, v in r.items():
+            debug(k + ":" + str(v))
+            if k in ["IPv6", "DNSSEC", "DOH", "DOT"] and bool(v) is True:
+                protocol.append(k)
+        target["protocol"] = protocol
+        # 防护措施特殊处理
+        protect = str(r["PROTECT"]).split("|")
+        target["protect"] = protect
+        # 其他统一处理
+        for k in target_map.keys():
+            # 原数据的值赋给经过映射之后的键
+            target[target_map[k]] = r[k]
+        target_list.append(target)
+    return {"code": 200, "data": target_list, "total": res_count}
+
+
+@bp.get("/filter")
+@bp.doc("目标可筛选信息获取接口")
+@bp.output({
+    "code": Integer(),
+    "proto": List(String()),
+    "isp": List(String()),
+    "cou": List(String())
+})
+def filter_info():
+    proto = ["IPv6", "DNSSEC", "DoH", "DoT"]
+    # 查询所有的isp
+    isp_sql = """SELECT DISTINCT ISP from %s """ % MYSQL_TAB_TARGETDATA
+    # 执行查询
+    da.cursor.execute(isp_sql)
+    isp_data = da.cursor.fetchall()
+    isp = [i.popitem()[1] for i in isp_data]
+
+    # 查询所有的国家
+    cou_sql = """SELECT DISTINCT COU from %s """ % MYSQL_TAB_TARGETDATA
+    # 执行查询
+    da.cursor.execute(cou_sql)
+    cou_data = da.cursor.fetchall()
+    cou = [i.popitem()[1] for i in cou_data]
+    return {"code": 200, "proto": proto, "isp": isp, "cou": cou}
+
+
+@bp.get("/map")
+@bp.doc("地图信息获取接口")
+@bp.input({
+    "protocol": String(load_default=None, validate=OneOf(['IPv6', 'DNSSEC', "DoH", "DoT"])),
+    "cou": String(load_default=None),
+    "isp": String(load_default=None),
+    "ip": IP(load_default=None)
+}, location="query")
+@bp.output({
+    "code": Integer(),
+    "dataObject": Dict(String(load_default="earthAddTitle"), List(Nested(CouInfo()))),
+})
+def map_info(query_data):
+    ip = query_data["ip"]
+    proto = query_data["protocol"]
+    cou = query_data["cou"]
+    isp = query_data["isp"]
+
+    if ip is None:
+        cou_list = []
+        # 比较和默认参数值不同的参数
+        differ = set({"proto": proto, "cou": cou, "isp": isp}.items()).difference(
+            {"proto": None, "cou": None, "isp": None}.items())
+        if differ == set():
+            # 在数据表中进行分组查询,无额外筛选
+            sql = """
+                SELECT T.COU,sum(T.c) as R,sum(T.dnssec) as DNSSEC,sum(T.v6) as IPv6,sum(T.dh) as DoH,sum(T.dt) as DoT 
+                FROM
+                (SELECT COU,count(*) as c,count(DNSSEC=1 or null) as dnssec,count(IPv6=1 or null) as v6,count(DOH=1 or null) as dh,count(DOT=1 or null) as dt
+                FROM %s 
+                GROUP BY COU,DNSSEC,IPv6,DOH,DOT) as T GROUP BY T.COU;""" % (MYSQL_TAB_TARGETDATA)
+        else:
+            l = len(differ)
+            # 条件字典
+            condition = {}
+            for _ in range(l):
+                key, val = differ.pop()
+                # 协议参数在数据表中对应的字段名
+                if key == "proto":
+                    condition[{'IPv6': "IPv6", "DNSSEC": "DNSSEC", "DoH": "DOH", "DoT": "DOT"}[val]] = str(True)
+                else:
+                    # 国家和isp属性的键只需调整字母为大写
+                    key = key.upper()
+                    condition[key] = "\"".join(["", str(val), ""])
+            # 在数据表中进行分组查询,无额外筛选
+            sql = """
+                SELECT T.COU,sum(T.c) as R,sum(T.dnssec) as DNSSEC,sum(T.v6) as IPv6,sum(T.dh) as DoH,sum(T.dt) as DoT 
+                FROM
+                (SELECT COU,count(*) as c,count(DNSSEC=1 or null) as dnssec,count(IPv6=1 or null) as v6,count(DOH=1 or null) as dh,count(DOT=1 or null) as dt
+                FROM %s 
+                WHERE %s 
+                GROUP BY COU,DNSSEC,IPv6,DOH,DOT) as T GROUP BY T.COU;""" % (
+                MYSQL_TAB_TARGETDATA, " AND ".join(["=".join(condition.popitem()) for _ in range(l)]))
+
+        # 执行查询
+        da.cursor.execute(sql)
+        data = da.cursor.fetchall()
+        for d in data:
+            # 单一国家的数据
+            value = [d['IPv6'], d['DNSSEC'], d['DoH'], d['DoT']]
+            cou_data = {
+                "name": d['COU'],
+                'title': "支持各类协议的解析器数量为：{IPv6：" + str(d['IPv6']) + "，DNSSEC：" + str(
+                    d['DNSSEC']) + "，DoH：" + str(d['DoH']) + "，DoT：" + str(d['DoT']) + "}",
+                "value": d['R']
+            }
+            cou_list.append(cou_data)
+
+        return {"code": 200, "dataObject": {"earthAddTitle": cou_list}}
+        # 查询目标
+    else:
+        # 查询目标，根据v4、v6地址分类
+        res = da.get_data(data_type="target",
+                          search={"ADDRv4": ip} if "." in str(ip) else {"ADDRv6": ip})
+        # 支持协议
+        proto = []
+        for p in ["IPv6", "DNSSEC", "DOH", "DOT"]:
+            if res[0][p]:
+                proto.append(p)
+        target = [{"name": res[0]["COU"],
+                   "title": "该解析器支持：" + '、'.join(proto) + " 协议",
+                   "value": 1, }]
+        return {"code": 200, "dataObject": {"earthAddTitle": target}}

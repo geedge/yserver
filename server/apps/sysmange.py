@@ -3,7 +3,7 @@
 from apiflask import APIBlueprint, Schema
 from apiflask.fields import String, Integer, DateTime, List, Nested
 
-from apps.util import fake
+from .util import fake
 
 bp = APIBlueprint("系统管理接口集合", __name__, url_prefix="/user")
 
@@ -24,9 +24,11 @@ class User(Schema):
 }, location='query')
 @bp.output({
     "code": Integer(),
-    "data": List(Nested(User()))
+    "data": List(Nested(User())),
+    "total": Integer()
 })
 def list_user(query_data):
+    # TODO：具体实现
     if query_data['page'] == 1:
         user_list = [
             {"account": "Root", "username": "管理员", "time": fake.date_time_between(start_date='-10y', end_date='-9y'),
@@ -57,5 +59,6 @@ def list_user(query_data):
     "msg": String()
 })
 def create_user(json_data):
+    # TODO:具体实现
     print(json_data)
     return {"code": 200, "msg": "ok"}

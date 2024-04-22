@@ -1,14 +1,21 @@
 # 系统信息接口
-import datetime
 
 from apiflask import APIBlueprint, Schema
 from apiflask.fields import Date, Integer, Nested, Dict, DateTime, String, List
 from apiflask.validators import OneOf
 
 # 测试用
-from apps.util import fake
+from settings import *
+from .util import da
 
 bp = APIBlueprint("仪表盘接口", __name__, url_prefix="/sys")
+
+log_map = {
+    "LOG_LEVEL": "level",
+    "LOG_INFO": "info",
+    "LOG_TIME": "time",
+    "S_IP": "ip",
+}
 
 
 class TargetOut(Schema):
@@ -37,18 +44,17 @@ class LogOut(Schema):
     "target": Nested(TargetOut())
 })
 def systate():
-    # TODO:从数据库读取信息并统计
     # 已部署代理节点数量
-    agent_num = fake.random.randint(10, 100)
+    agent_num = da.count_data("agent")
     # 已执行任务数量（包括执行完毕和正在执行）
-    task_num = fake.random.randint(10, 100)
+    task_num = da.count_data("task")
     # 系统已运行天数
-    workday = fake.random.randint(10, 100)
+    workday = datetime.date.today() - START_DAY
     # 已探测目标统计
-    v6dns_num = fake.random.randint(10, 100)
-    dnssec_num = fake.random.randint(10, 100)
-    doh_num = fake.random.randint(10, 100)
-    dot_num = fake.random.randint(10, 100)
+    v6dns_num = da.count_data("target", {"IPv6": True})
+    dnssec_num = da.count_data("target", {"DNSSEC": True})
+    doh_num = da.count_data("target", {"DOH": True})
+    dot_num = da.count_data("target", {"DOT": True})
     # 返回结果
     return {
         "code": 200,
@@ -76,19 +82,23 @@ def target_date():
     day = 1
     while day < 8:
         d = today - datetime.timedelta(day)
-        # TODO:从数据库读取并统计
         dates[d] = {
-            "v6dns": fake.random.randint(10, 20) * day,
-            "dnssec": fake.random.randint(10, 20) * day,
-            "doh": fake.random.randint(10, 20) * day,
-            "dot": fake.random.randint(10, 20) * day
+            "v6dns": da.count_data_by_time("target", time=d, search={"IPv6": True}),
+            "dnssec": da.count_data_by_time("target", time=d, search={"DNSSEC": True}),
+            "doh": da.count_data_by_time("target", time=d, search={"DOH": True}),
+            "dot": da.count_data_by_time("target", time=d, search={"DOT": True})
         }
         day += 1
     return {"code": 200, "date_data": dates}
 
 
+# 系统操作日志获取接口
 @bp.get("/log")
 @bp.input({
+    "begin": Date(),
+    "end": Date(),
+    "level": String(validate=OneOf(["INFO", "WARNING", "ERROR"])),
+    "user": String(),
     "per_page": Integer(load_default=10),
     "page": Integer(load_default=1)
 }, location="query")
@@ -98,19 +108,25 @@ def target_date():
     "log_data": List(Nested(LogOut())),
     "total": Integer()
 })
+# TODO:完善
 def sys_log(query_data):
     # 每页显示多少项
     per_page = query_data["per_page"]
     # 页数
     page = query_data["page"]
-    log_list = []
-    # TODO:具体实现
-    for i in range(per_page):
-        log_list.append({
-            "time": fake.date_time_between(start_date="-1y"),
-            "level": fake.word(ext_word_list=["INFO", "WARNING", "ERROR"]),
-            "info": fake.text(max_nb_chars=20, ext_word_list=None),
-            "user": fake.name(),
-            "ip": fake.ipv4()
-        })
-    return {"code": 200, "log_data": log_list, "total": 10 * per_page}
+    tabs = {
+        "syslog": MYSQL_TAB_SYSLOG,
+        "user": MYSQL_TAB_USER,
+        "start": (page - 1) * per_page,
+        "stop": per_page
+    }
+    sql = """SELECT 
+        s.LOG_LEVEL as level,
+        s.LOG_INFO as info, 
+        s.LOG_TIME as time,
+        s.S_IP as ip,
+        CONCAT(u.USER_NAME,"(ID:",u.USER_ID,")") as user
+    from %(syslog)s s,%(user)s u WHERE s.USER_ID=u.USER_ID LIMIT %(start)s,%(stop)s  """ % tabs
+    da.cursor.execute(sql)
+    log_list = da.cursor.fetchall()
+    return {"log_data": log_list}

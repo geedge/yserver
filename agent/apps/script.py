@@ -14,7 +14,7 @@ executor = ThreadPoolExecutor(5)
 @bp.post('/')
 @bp.doc("渗透任务参数接收接口", "返回任务执行状态")
 @bp.input({
-    'name': String(required=True),
+    'policy': String(required=True),
     'param': String(required=True)
 })
 def start_script(query_data):

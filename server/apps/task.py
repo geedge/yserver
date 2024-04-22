@@ -6,9 +6,22 @@ from apiflask import APIBlueprint, Schema
 from apiflask.fields import String, Integer, IP, DateTime, List, Nested
 from apiflask.validators import OneOf
 
-from apps.util import fake
+from .util import fake, da
 
 bp = APIBlueprint("任务管理接口集合", __name__, url_prefix="/task")
+
+# 数据库列与返回值的键对应关系
+task_response_map = {
+    "TASK_ID": "id",
+    "TARGET_IP": "target",
+    "TASK_NAME": "name",
+    "AGENT_ID": "agent",
+    "TARGET_DOMAIN": "target_domain",
+    "TARGET_RR": "target_rr",
+    "POLICY": "policy",
+    "CREATE_TIME": "create_time",
+    "STATUS": "status",
+}
 
 
 class Task(Schema):
@@ -53,8 +66,9 @@ class TaskState(Schema):
 
 # 创建任务接口
 @bp.post("/create")
-@bp.doc("任务创建接口",
-        description="部分字段值的映射关系：</br> policy 期望策略，可选参数范围及对应含义为：，auto-自动，ddos-拒绝服务，sjqp-数据欺骗</br> scan 状态感知方式，可选参数范围及对应含义为：auto-自动，icmp-icmp/v6时延，tcp-tcp时延，dns-dns时延，record-记录正确性验证")
+@bp.doc("任务创建接口", "部分字段值的映射关系：</br>"
+        + "policy 期望策略，可选参数范围及对应含义为：，auto-自动，ddos-拒绝服务，sjqp-数据欺骗</br>"
+        + "scan 状态感知方式，可选参数范围及对应含义为：auto-自动，icmp-icmp/v6时延，tcp-tcp时延，dns-dns时延，record-记录正确性验证")
 @bp.input({
     # 任务名称
     "name": String(),
@@ -79,7 +93,7 @@ class TaskState(Schema):
 })
 @bp.output({
     "code": Integer(),
-    "msg": String(),
+    "msg": String()
 })
 # TODO：创建任务接口具体实现
 def make_task(json_data):
@@ -122,20 +136,19 @@ def ops_task(json_data):
 # TODO：查询任务状态接口具体实现
 def tasks_state(query_data):
     per_page = query_data["per_page"]
+    page = query_data["page"]
+
+    # 任务列表
     task_list = []
-    for _ in range(per_page):
-        task_list.append({
-            "id": fake.random.randint(1, 10000),
-            "target": fake.ipv4(),
-            "name": "示例任务",
-            "agent": fake.random.randint(1, 10000),
-            "target_domain": fake.domain_name(),
-            "target_rr": "NS attack.com",
-            "policy": random.choice(["auto", "ddos", "sjqp"]),
-            "create_time": fake.date_time_between(start_date="-1y"),
-            "status": random.choice(["working", "stop", "finish"])
-        })
-    return {"code": 200, "data": task_list, "total": 10 * per_page}
+    res = da.get_data(data_type="task",
+                      offset=(page - 1) * per_page, limit=per_page)
+    res_count = da.count_data(data_type="task")
+    for r in res:
+        task = {}
+        for key, value in r.items():
+            task[task_response_map[key]] = value
+        task_list.append(task)
+    return {"code": 200, "data": task_list, "total": res_count}
 
 
 # 任务详情接口
@@ -170,7 +183,7 @@ def task_info(query_data):
         "policy_id": str(fake.random.randint(1, 10000)),
         "policy_status": "评估中"
     })
-    return {"data": task_state_list}
+    return {"code": 200, "data": task_state_list}
 
 
 @bp.get("/tp")
@@ -179,7 +192,7 @@ def task_info(query_data):
     "id": String(required=True),
     "per_page": Integer(load_default=10),
     "page": Integer(load_default=1)
-})
+}, location="query")
 @bp.output({
     "code": Integer(),
     "data": List(Nested(TaskLog())),
@@ -194,6 +207,6 @@ def taskpolicy_log(query_data):
         "targetip": "2406:1234:1234:1234:1234:1234:1234:1234",
         "level": random.choice(["INFO", "WARNING", "ERROR"]),
         "info": fake.text(max_nb_chars=20, ext_word_list=None)
-    } for _ in range(20)]
+    } for _ in range(per_page)]
 
     return {"code": 200, "data": policy_output, "total": 10 * per_page}
