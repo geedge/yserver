@@ -19,6 +19,7 @@ fake分支，用于快速定义新的数据接口与前端对接
 | sysmanage.py | 系统管理 |
 | target.py    | 目标感知 |
 | task.py      | 任务管理 |
+| login.py     |用户登陆退出|
 
 model.py文件包含了一些参数与数据库表字段名或类型之间的映射关系
 

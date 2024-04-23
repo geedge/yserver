@@ -95,9 +95,13 @@ def target_date():
 # 系统操作日志获取接口
 @bp.get("/log")
 @bp.input({
+    # 开始时间
     "begin": Date(),
+    # 结束时间
     "end": Date(),
+    # 日志等级
     "level": String(validate=OneOf(["INFO", "WARNING", "ERROR"])),
+    # 用户名
     "user": String(),
     "per_page": Integer(load_default=10),
     "page": Integer(load_default=1)
@@ -108,7 +112,7 @@ def target_date():
     "log_data": List(Nested(LogOut())),
     "total": Integer()
 })
-# TODO:完善
+# TODO:完善功能，根据时间或日志等级或用户名筛选获取日志数据(For 石昊月师弟)
 def sys_log(query_data):
     # 每页显示多少项
     per_page = query_data["per_page"]
@@ -118,7 +122,7 @@ def sys_log(query_data):
         "syslog": MYSQL_TAB_SYSLOG,
         "user": MYSQL_TAB_USER,
         "start": (page - 1) * per_page,
-        "stop": per_page
+        "stop": (page - 1) * per_page + per_page
     }
     sql = """SELECT 
         s.LOG_LEVEL as level,
