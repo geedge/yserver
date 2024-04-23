@@ -161,7 +161,7 @@ def tasks_state(query_data):
     "code": Integer(),
     "data": List(Nested(TaskState()))
 })
-# TODO：任务详情接口具体实现
+# TODO：任务详情信息获取接口具体实现
 def task_info(query_data):
     print(query_data)
     round = random.randint(1, 10)
@@ -189,6 +189,7 @@ def task_info(query_data):
 @bp.get("/tp")
 @bp.doc("任务策略执行日志获取接口")
 @bp.input({
+    # 任务策略id (taskpolicy)
     "id": String(required=True),
     "per_page": Integer(load_default=10),
     "page": Integer(load_default=1)
@@ -198,6 +199,7 @@ def task_info(query_data):
     "data": List(Nested(TaskLog())),
     "total": Integer()
 })
+# TODO：功能实现(For 石昊月师弟)
 def taskpolicy_log(query_data):
     per_page = query_data["per_page"]
     page = query_data["page"]

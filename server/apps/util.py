@@ -214,6 +214,7 @@ class DataHandler:
     def count_data(self, search: dict = None, data_type="agent"):
         return self.get_data(search=search, data_type=data_type, count=True)
 
+    # 统计一段时间内的信息数量
     def count_data_by_time(self, data_type="agent", time=None, search=None):
         tabname = model.tabmapping[data_type]
         timename = model.timemapping[data_type]
