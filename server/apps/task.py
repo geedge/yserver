@@ -26,7 +26,7 @@ task_response_map = {
 
 
 class Task(Schema):
-    id = Integer()
+    id = String()
     target = String()
     name = String()
     agent = String()
@@ -273,7 +273,7 @@ def ops_task(json_data):
     "data": List(Nested(Task())),
     "total": Integer()
 })
-# TODO：查询任务状态接口具体实现
+# TODO：DoH适配
 def tasks_state(query_data):
     per_page = query_data["per_page"]
     page = query_data["page"]
@@ -286,7 +286,10 @@ def tasks_state(query_data):
     for r in res:
         task = {}
         for key, value in r.items():
-            task[task_response_map[key]] = value
+            try:
+                task[task_response_map[key]] = value
+            except KeyError:
+                continue
         task_list.append(task)
     return {"code": 200, "data": task_list, "total": res_count}
 
