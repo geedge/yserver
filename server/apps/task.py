@@ -5,7 +5,6 @@ from apiflask import APIBlueprint, Schema
 from apiflask.fields import String, Integer, IP, DateTime, List, Nested
 from apiflask.validators import OneOf
 
-from settings import *
 from .agentcomm import deliver_task
 from .policy import *
 from .util import fake, da, error, string_to_mysql
@@ -210,7 +209,12 @@ def make_task(json_data):
     return {"code": 200, "msg": "ok"}
 
 
-opsmap = {"start": "开始", "stop": "暂停", "cancel": "停止"}
+opsmap = {"start": "开始", "stop": "暂停", "cancel": "取消"}
+statemap = {"working": "执行中", "stop": "暂停", "finish": "结束"}
+# 合法逻辑映射，例如不能让一个暂停的任务开始，或是让一个正在运行的任务停止
+ops_state = {"start": ["stop"], "stop": ["working"], "cancel": ["working", "stop"]}
+# 操作与状态结果的映射关系
+ops_state_result = {"start": "working", "stop": "stop", "cancel": "finish"}
 
 
 # 操作任务开始停止控制接口
@@ -224,10 +228,37 @@ opsmap = {"start": "开始", "stop": "暂停", "cancel": "停止"}
     "code": Integer(),
     "msg": String(),
 })
-# TODO：操作任务开始停止控制接口具体实现
 def ops_task(json_data):
-    ops = opsmap[json_data["ops"]]
-    return {"code": 200, "msg": "任务" + json_data["taskid"] + "已" + ops}
+    ops = json_data["ops"]
+    # 操作中文名
+    ops_cn = opsmap[json_data["ops"]]
+    id = json_data["taskid"]
+
+    # 查询目标任务状态
+    sql = """
+    SELECT AGENT_ID,STATUS 
+    FROM %s
+    WHERE TASK_ID=%s;
+    """ % (MYSQL_TAB_TASK, "\'" + id + "\'")
+    da.cursor.execute(sql)
+    data = da.cursor.fetchall()
+    if len(data) == 0:
+        return {"code": 400, "msg": "任务" + id + "不存在！！"}
+    # 判断操作是否是逻辑上可执行的
+    if data[0]["STATUS"] in ops_state[ops]:
+        # 向对应代理下发控制指令
+        err = deliver_task(data[0]["AGENT_ID"], "ops", ops)
+        if err is not None:
+            return {"code": 500, "msg": str(err)}
+        task_update_status_sql = """
+        UPDATE %s
+        SET STATUS=%s
+        WHERE TASK_ID=%s;""" % (MYSQL_TAB_TASK, "\'" + ops_state_result[ops] + "\'", "\'" + id + "\'")
+        da.cursor.execute(task_update_status_sql)
+        da.conn.commit()
+        return {"code": 200, "msg": "任务" + json_data["taskid"] + "已" + ops_cn}
+    else:
+        return {"code": 400, "msg": "无法对一个" + statemap[data[0]["STATUS"]] + "的任务执行" + ops_cn + "操作"}
 
 
 # 查询任务列表接口
