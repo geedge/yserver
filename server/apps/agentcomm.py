@@ -123,6 +123,7 @@ def deliver_task(agent_id, policy, policy_param):
     # 查询agent_id对应代理的ip和端口信息
     # 将policy和policy_param作为参数传递到对应接口
     pass
+    return None
 
 
 @bp.post("/res")

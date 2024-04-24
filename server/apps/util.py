@@ -1,4 +1,5 @@
 # 工具包
+import ipaddress
 import sys
 
 import pymysql
@@ -232,7 +233,7 @@ da = DataHandler()
 def string_to_mysql(data: dict):
     res = {}
     for key, val in data.items():
-        if type(val) == type("text"):
+        if isinstance(val, str):
             res[key] = "\'" + val + "\'"
         else:
             res[key] = val
@@ -249,3 +250,12 @@ def info(message, *args, **kwargs):
 
 def error(message, *args, **kwargs):
     logger.error(message, *args, **kwargs)
+
+
+# 判断是否为IP地址，若是返回4(IPv4)或6(IPv6),否则返回None
+def is_ipaddress(address: str):
+    try:
+        ip = ipaddress.ip_address(address)
+        return int(ip.version)
+    except ValueError:
+        return None
