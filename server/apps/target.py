@@ -35,7 +35,7 @@ class TestNode(Schema):
     Name = String()
     Ip = String()
     Loc = String()
-    Port = Integer()
+    # Port = Integer()
 
 
 # 地图国家数据格式
@@ -66,6 +66,29 @@ class DelayOut(Schema):
     delay_data = List(Nested(Delay()))
 
 
+@bp.get("/nodes")
+@bp.doc("参与探测的节点信息获取接口", "传入任务编号taskid")
+@bp.input({
+    "taskid": String(required=True)
+}, location="query")
+@bp.output({
+    "code": Integer(),
+    "nodes": List(Nested(TestNode()))
+})
+def get_nodes(query_data):
+    node_list = []
+    num = 10
+    for i in range(num):
+        city = fake.province()
+        node_list.append({
+            "Id": str(i),
+            "Name": city + "测试节点",
+            "Ip": fake.ipv4(),
+            "Loc": city,
+        })
+    return {"code": 200, "nodes": node_list}
+
+
 @bp.get("/delay")
 @bp.doc("获取每个节点的时延数据,单位为ms", "type参数为{icmp,dns,tcp}中的一个,target为目标IP或DoH目标域名")
 @bp.input({
@@ -84,7 +107,7 @@ def get_pernode_delay(query_data):
     #     threads.append(mythread)
     # for t in threads:
     #     t.join()
-    for i in range(5):
+    for i in range(10):
         ans.append({"Id": str(i), "Type": scan_type, "CurrDelay": random.randint(1, 1000)})
     return {"code": 200, 'delay_data': ans}
 
