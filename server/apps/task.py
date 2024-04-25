@@ -5,7 +5,6 @@ import uuid
 from apiflask import APIBlueprint, Schema
 from apiflask.fields import String, Integer, IP, DateTime, List, Nested
 from apiflask.validators import OneOf
-from pymysql.converters import escape_string
 
 from .agentcomm import deliver_task
 from .policy import *
@@ -171,8 +170,9 @@ def make_task(json_data):
     # 随机选择10个
     selected_nodes = random.choices(all_nodes, k=10 if len(all_nodes) > 10 else len(all_nodes))
     # 将选择的代理节点ID和对应IPv4地址存储为字典，键为代理ID，值为代理的IPv4地址
-    selected_nodes_info = {n['AGENT_ID']: str(n['IPADDR']).split("|")[0] for n in selected_nodes}
-    task_info["nodes"] = escape_string(json.dumps(selected_nodes_info))
+    selected_nodes_info = {'{}'.format(n['AGENT_ID']): '{}'.format(str(n['IPADDR']).split("|")[0]) for n in
+                           selected_nodes}
+    task_info["nodes"] = json.dumps(selected_nodes_info)
 
     # sql语句组合
     sql = """

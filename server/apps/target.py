@@ -1,5 +1,6 @@
 # 目标状态感知
 # 时延测试接口
+import json
 import threading
 
 import pandas as pd
@@ -41,11 +42,11 @@ class Target(Schema):
 
 
 class TestNode(Schema):
-    Id = Integer()
+    Id = String()
     Name = String()
     Ip = String()
     Loc = String()
-    Port = Integer()
+    # Port = Integer()
 
 
 class Delay(Schema):
@@ -69,6 +70,42 @@ class CouInfo(Schema):
     title = String()
     # 总数量
     value = Integer()
+
+
+@bp.get("/nodes")
+@bp.doc("参与探测的节点信息获取接口", "传入任务编号taskid")
+@bp.input({
+    "taskid": String(required=True)
+}, location="query")
+@bp.output({
+    "code": Integer(),
+    "nodes": List(Nested(TestNode()))
+})
+def get_nodes(query_data):
+    # 节点列表
+    node_list = []
+    # 检索taskid对应任务中的状态感知节点列表
+    sql = """
+    SELECT SCAN_AGENT_ID_LIST as node_info
+    FROM %s
+    WHERE TASK_ID='%s'
+    """ % (MYSQL_TAB_TASK, query_data['taskid'])
+    da.cursor.execute(sql)
+    nodes = da.cursor.fetchall()
+
+    # 感知节点ID与对应IP
+    nodes_info = json.loads(nodes[0]['node_info'].replace('"', "\""))
+
+    # TODO:节点位置信息获取
+
+    for k, v in nodes_info.items():
+        node_list.append({
+            "Id": k,
+            "Name": "测试节点_编号{" + str(k) + "}",
+            "Ip": v,
+            "Loc": "中国"
+        })
+    return {"code": 200, "nodes": node_list}
 
 
 @bp.get("/delay/<string:type>")
