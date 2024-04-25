@@ -55,7 +55,7 @@ class agent(Schema):
 @bp.post("/register")
 @bp.doc("代理注册接口", "返回分配给代理的编号值，用于代理和主控端通信注册，前端界面无需调用")
 @bp.input({
-    "atype": String(),
+    "atype": String(validate=OneOf(["gjst", "ztgz", "csgz"])),
     'v6addr': List(String()),
     'lat': String(),
     'lng': String(),
