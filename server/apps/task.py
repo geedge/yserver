@@ -1,4 +1,5 @@
 # 任务管理接口
+import json
 import uuid
 
 from apiflask import APIBlueprint, Schema
@@ -159,6 +160,22 @@ def make_task(json_data):
     # 添加表名
     task_info["tab"] = MYSQL_TAB_TASK
 
+    # 添加状态探测节点，用于状态感知
+    scan_node_sql = """
+    SELECT AGENT_ID,IPADDR
+    FROM %s
+    WHERE STATUS='1' AND AGENT_TYPE='ztgz'
+    LIMIT 50;
+    """ % MYSQL_TAB_AGENT
+    da.cursor.execute(scan_node_sql)
+    # 所有在线的支持状态感知的代理
+    all_nodes = da.cursor.fetchall()
+    # 随机选择10个
+    selected_nodes = random.choices(all_nodes, k=10 if len(all_nodes) > 10 else len(all_nodes))
+    # 将选择的代理节点ID和对应IPv4地址存储为字典，键为代理ID，值为代理的IPv4地址
+    selected_nodes_info = {n['AGENT_ID']: str(n['IPADDR']).split("|")[0] for n in selected_nodes}
+    task_info["nodes"] = json.dumps(selected_nodes_info)
+
     # sql语句组合
     sql = """
     INSERT INTO %(tab)s (
@@ -172,7 +189,8 @@ def make_task(json_data):
     TARGET_DOMAIN,
     TARGET_RTYPE,
     TARGET_RR,
-    %(TARGET)s)
+    %(TARGET)s,
+    SCAN_AGENT_ID_LIST)
     VALUES (
     %(t_id)s,
     %(name)s,
@@ -184,7 +202,8 @@ def make_task(json_data):
     %(tdomain)s,
     %(target_rtype)s,
     %(target_rr)s,
-    %(target)s
+    %(target)s,
+    %(nodes)s
     );
     """ % task_info
     da.cursor.execute(sql)
