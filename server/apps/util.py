@@ -180,7 +180,7 @@ class DataHandler:
         # 完全一致
         if len(differ) == 0:
             if not count:
-                sql = """SELECT * FROM %s LIMIT %s, %s""" % (tabname, offset, offset + limit)
+                sql = """SELECT * FROM %s LIMIT %s, %s;""" % (tabname, offset, offset + limit)
                 self.cursor.execute(sql)
                 return self.cursor.fetchall()
             else:
@@ -196,7 +196,7 @@ class DataHandler:
                 # 参数在数据表中对应的字段名
                 tab_key = model.keymapping[data_type][key]
                 if model.typemapping[key] == "str":
-                    condition[tab_key] = "\"".join(["", str(val), ""])
+                    condition[tab_key] = "\'".join(["", str(val), ""])
                 else:
                     condition[tab_key] = str(val)
             if not count:
