@@ -7,7 +7,7 @@ from apiflask.validators import OneOf
 from flask import request
 
 from settings import *
-from .util import da, error, string_to_mysql
+from .util import da, error
 
 bp = APIBlueprint("代理管理接口集合", __name__, url_prefix="/agent")
 
@@ -104,8 +104,6 @@ def register_agent(json_data):
              "port": data["port"],
              "atype": data["atype"],
              }
-    # 对字符串值进行处理
-    param = string_to_mysql(param)
     # 数据库表名
     param["tab"] = MYSQL_TAB_AGENT
 
@@ -139,7 +137,7 @@ def task_ret(json_data):
         "ok" -- 成功执行
     """
     sql = """INSERT INTO %s(CREATED_BY_AGENT,TLOG_LEVEL,TLOG_INFO,TLOG_TP)
-    VALUES(%s,%s,%s,%s)
+    VALUES('%s','%s','%s','%s')
     """ % (MYSQL_TAB_TASK_LOG, json_data["id"], json_data["level"], json_data["info"],
            json_data["taskpolicy"])
     try:
@@ -225,17 +223,17 @@ def insert_agent(param: dict):
             MEM,
             IDLE) 
             VALUES(
-            %(id)s,
-            %(ipaddr)s,
-            %(lat)s,
-            %(lng)s,
-            %(atype)s,
-            %(sys)s,
-            %(port)s,
-            %(cpunum)s,
-            %(status)s,
-            %(mem)s,
-            %(idle)s);""" % param
+            '%(id)s',
+            '%(ipaddr)s',
+            '%(lat)s',
+            '%(lng)s',
+            '%(atype)s',
+            '%(sys)s',
+            '%(port)s',
+            '%(cpunum)s',
+            '%(status)s',
+            '%(mem)s',
+            '%(idle)s)';""" % param
     try:
         da.cursor.execute(sql)
         da.conn.commit()

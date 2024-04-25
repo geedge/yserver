@@ -5,10 +5,11 @@ import uuid
 from apiflask import APIBlueprint, Schema
 from apiflask.fields import String, Integer, IP, DateTime, List, Nested
 from apiflask.validators import OneOf
+from pymysql.converters import escape_string
 
 from .agentcomm import deliver_task
 from .policy import *
-from .util import fake, da, error, string_to_mysql
+from .util import fake, da, error, debug
 
 bp = APIBlueprint("任务管理接口集合", __name__, url_prefix="/task")
 
@@ -140,12 +141,6 @@ def make_task(json_data):
         "target_rr": target_rr,
         "target_rtype": ""
     }
-    # 若目标为IP地址
-    if is_ipaddress(target) is not None:
-        task_info["TARGET"] = "TARGET_IP"
-    # 若目标为域名，视为DoH服务
-    else:
-        task_info["TARGET"] = "TARGET_DOH"
 
     # 输入参数检查处理
     warn = valid_task_info(task_info)
@@ -154,11 +149,14 @@ def make_task(json_data):
     if task_info["target_rr"] != "":
         task_info["target_rtype"], task_info["target_rr"] = tuple(task_info["target_rr"].split(" "))
 
-    # 参数格式处理
-    task_info = string_to_mysql(task_info)
-
     # 添加表名
     task_info["tab"] = MYSQL_TAB_TASK
+    # 若目标为IP地址
+    if is_ipaddress(target) is not None:
+        task_info["TARGET"] = "TARGET_IP"
+    # 若目标为域名，视为DoH服务
+    else:
+        task_info["TARGET"] = "TARGET_DOH"
 
     # 添加状态探测节点，用于状态感知
     scan_node_sql = """
@@ -174,7 +172,7 @@ def make_task(json_data):
     selected_nodes = random.choices(all_nodes, k=10 if len(all_nodes) > 10 else len(all_nodes))
     # 将选择的代理节点ID和对应IPv4地址存储为字典，键为代理ID，值为代理的IPv4地址
     selected_nodes_info = {n['AGENT_ID']: str(n['IPADDR']).split("|")[0] for n in selected_nodes}
-    task_info["nodes"] = json.dumps(selected_nodes_info)
+    task_info["nodes"] = escape_string(json.dumps(selected_nodes_info))
 
     # sql语句组合
     sql = """
@@ -192,20 +190,21 @@ def make_task(json_data):
     %(TARGET)s,
     SCAN_AGENT_ID_LIST)
     VALUES (
-    %(t_id)s,
-    %(name)s,
-    %(ag_id)s,
-    %(status)s,
-    %(p_delay)s,
-    %(t_delay)s,
-    %(scan)s,
-    %(tdomain)s,
-    %(target_rtype)s,
-    %(target_rr)s,
-    %(target)s,
-    %(nodes)s
+    '%(t_id)s',
+    '%(name)s',
+    '%(ag_id)s',
+    '%(status)s',
+    '%(p_delay)s',
+    '%(t_delay)s',
+    '%(scan)s',
+    '%(tdomain)s',
+    '%(target_rtype)s',
+    '%(target_rr)s',
+    '%(target)s',
+    '%(nodes)s'
     );
     """ % task_info
+    debug(sql)
     da.cursor.execute(sql)
     da.conn.commit()
 
@@ -213,9 +212,9 @@ def make_task(json_data):
     tp_id, p_exe, p_param = init_task_policy(policy_type, target, t_id)
     update_policy_sql = """
     UPDATE %s
-    SET POLICY=%s
-    WHERE TASK_ID=%s;
-    """ % (MYSQL_TAB_TASK, tp_id, "\'" + t_id + "\'")
+    SET POLICY='%s'
+    WHERE TASK_ID='%s';
+    """ % (MYSQL_TAB_TASK, tp_id, t_id)
     da.cursor.execute(update_policy_sql)
     da.conn.commit()
 
@@ -257,8 +256,8 @@ def ops_task(json_data):
     sql = """
     SELECT AGENT_ID,STATUS 
     FROM %s
-    WHERE TASK_ID=%s;
-    """ % (MYSQL_TAB_TASK, "\'" + id + "\'")
+    WHERE TASK_ID='%s';
+    """ % (MYSQL_TAB_TASK, id)
     da.cursor.execute(sql)
     data = da.cursor.fetchall()
     if len(data) == 0:
@@ -271,8 +270,8 @@ def ops_task(json_data):
             return {"code": 500, "msg": str(err)}
         task_update_status_sql = """
         UPDATE %s
-        SET STATUS=%s
-        WHERE TASK_ID=%s;""" % (MYSQL_TAB_TASK, "\'" + ops_state_result[ops] + "\'", "\'" + id + "\'")
+        SET STATUS='%s'
+        WHERE TASK_ID='%s';""" % (MYSQL_TAB_TASK, ops_state_result[ops], id)
         da.cursor.execute(task_update_status_sql)
         da.conn.commit()
         return {"code": 200, "msg": "任务" + json_data["taskid"] + "已" + ops_cn}
@@ -330,9 +329,9 @@ def task_info(query_data):
     sql = """
     SELECT tp.TP_TIME as tp_time, p.P_NAME as p_name, tp.POLICY_PARAM as tp_param,tp.TP_ID as tp_id
     FROM %s as tp,%s as p
-    WHERE tp.POLICY=p.P_ID AND tp.FOR_TASK=%s
+    WHERE tp.POLICY=p.P_ID AND tp.FOR_TASK='%s'
     ORDER BY TP_TIME;
-    """ % (MYSQL_TAB_TASKPOLICY, MYSQL_TAB_POLICY, "\'" + taskid + "\'")
+    """ % (MYSQL_TAB_TASKPOLICY, MYSQL_TAB_POLICY, taskid)
     da.cursor.execute(sql)
     data = da.cursor.fetchall()
     task_state_list = []

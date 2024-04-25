@@ -2,7 +2,7 @@
 import random
 
 from settings import *
-from .util import da, is_ipaddress, string_to_mysql
+from .util import da, is_ipaddress
 
 
 # 初始策略创建,输入参数为期望策略类型、目标（IP或域名）以及任务编号
@@ -23,7 +23,7 @@ def init_task_policy(ptype, target, task):
 
     # 目标支持协议范围
     proto = []
-    # 未记录该目标
+    # 不存在该目标的相关记录
     # TODO:后续对该目标进行探测
     if len(res) == 0:
         proto = ["IPv6", "DOH", "DOT", "DNSSEC"]
@@ -57,12 +57,7 @@ def init_task_policy(ptype, target, task):
     # 策略对应的初始参数
     p_param = first_policy["P_PAYLOAD"]
 
-    task_policy_info = string_to_mysql({
-        "policy": first_policy["P_ID"],
-        "param": p_param,
-        "task": task
-    })
-    task_policy_info["tab"] = MYSQL_TAB_TASKPOLICY
+    task_policy_info = {"policy": first_policy["P_ID"], "param": p_param, "task": task, "tab": MYSQL_TAB_TASKPOLICY}
 
     # 记录该任务策略
     task_policy_sql = """
@@ -70,7 +65,7 @@ def init_task_policy(ptype, target, task):
     (POLICY,
     POLICY_PARAM,
     FOR_TASK)
-    VALUES(%(policy)s, %(param)s, %(task)s)
+    VALUES('%(policy)s', '%(param)s', '%(task)s')
     """ % task_policy_info
 
     # 获取任务策略的主键值
