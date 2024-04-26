@@ -90,22 +90,11 @@ def register_agent(json_data):
     data = dict(json_data)
     id = "".join(random.sample('1234567890zyxwvutsrqponmlkjihgfedcba', 8))
     # 代理所有参数
-    param = {"id": id,
-             "ipaddr": "|".join([request.remote_addr] + [i for i in data["v6addr"]]),
-             # "start_time",在数据库中实现
-             "lat": data["lat"],
-             "lng": data["lng"],
-             "cpunum": data["cpu_num"],
-             "mem": str(data["ram_size"]) + "GB" + "(" + str(
-                 '{:.2f}'.format(100 * (1 - float(data["ram_per"])))) + "%" + "可用)",
-             "sys": data["sys"],
-             "status": True,
-             "idle": True,
-             "port": data["port"],
-             "atype": data["atype"],
-             }
+    param = {"id": id, "ipaddr": "|".join([request.remote_addr] + [i for i in data["v6addr"]]), "lat": data["lat"],
+             "lng": data["lng"], "cpunum": data["cpu_num"], "mem": str(data["ram_size"]) + "GB" + "(" + str(
+            '{:.2f}'.format(100 * (1 - float(data["ram_per"])))) + "%" + "可用)", "sys": data["sys"], "status": True,
+             "idle": True, "port": data["port"], "atype": data["atype"], "tab": MYSQL_TAB_AGENT}
     # 数据库表名
-    param["tab"] = MYSQL_TAB_AGENT
 
     # 插入记录
     err = insert_agent(param)

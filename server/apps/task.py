@@ -375,3 +375,29 @@ def taskpolicy_log(query_data):
     } for _ in range(per_page)]
 
     return {"code": 200, "data": policy_output, "total": 10 * per_page}
+
+
+@bp.doc("任务删除接口", "输入参数说明：</br>"
+        + "id: 任务编号")
+@bp.post("/del")
+@bp.input({
+    "id": String(required=True)
+})
+@bp.output({
+    "code": Integer(),
+    "msg": String()
+})
+def del_task(json_data):
+    taskid = json_data["id"]
+    sql = """
+    DELETE 
+    FROM %s 
+    WHERE TASK_ID='%s';
+    """ % (MYSQL_TAB_TASK, taskid)
+    try:
+        da.cursor.execute(sql)
+        da.conn.commit()
+    except Exception as e:
+        error(str(e))
+        return {"code": 500, "msg": str(e)}
+    return {"code": 200, "msg": "ok"}

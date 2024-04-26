@@ -3,7 +3,6 @@
 import json
 import threading
 
-import pandas as pd
 import requests
 from apiflask import APIBlueprint, Schema
 from apiflask.fields import Integer, String, List, Nested, IP, DateTime, Dict
@@ -109,19 +108,34 @@ def get_nodes(query_data):
 
 
 @bp.get("/delay/<string:type>")
-@bp.doc("获取每个节点的时延数据", "type参数为{icmp,dns,tcp}中的一个", hide=True)
-@bp.input({"ip": IP(required=False)}, location="query")
+@bp.doc("获取每个节点的时延数据", "type参数为{icmp,dns,tcp}中的一个")
+@bp.input({
+    "ip": IP(required=True),
+    "taskid": String(required=True)}, location="query")
 @bp.output(DelayOut)
+# TODO:联调测试
 def get_pernode_delay(query_data, type):
-    # TODO:节点选择
-    addr = ""
-    if 'ip' in query_data.keys():
-        addr = query_data['ip']
+    # TODO:DoH处理
+    # 探测地址
+    addr = query_data['ip']
+    taskid = query_data['taskid']
+
+    # 响应数据
     ans = []
+    # 线程池
     threads = []
-    df = pd.read_csv("./server.csv", encoding="utf-8")
-    for index, row in df.iterrows():
-        mythread = threading.Thread(target=task, args=[ans, addr, row, type])
+    # 检索探测节点信息
+    sql = """
+    SELECT SCAN_AGENT_ID_LIST as node_info
+    FROM %s
+    WHERE TASK_ID='%s'
+    """ % (MYSQL_TAB_TASK, taskid)
+    da.cursor.execute(sql)
+    # 探测节点ID与地址
+    nodes = json.loads(da.cursor.fetchall()[0]["node_info"].replace('"', "\""))
+
+    for id, ip in nodes.items():
+        mythread = threading.Thread(target=task, args=[ans, addr, {'id': id, 'ip': ip}, type])
         mythread.start()
         threads.append(mythread)
     for t in threads:
@@ -132,33 +146,20 @@ def get_pernode_delay(query_data, type):
 threadLock = threading.Lock()
 
 
-def task(ans, addr, row, type):
+def task(ans, addr, agent, type):
+    res = 0
     if type == "icmp":
-        res = icmp_delay_query(addr, row['ip'])
-        threadLock.acquire()
-        ans.append({
-            'Id': row['id'],
-            'CurrDelay': res,
-            'Type': type})
-        threadLock.release()
-        return
+        res = icmp_delay_query(addr, agent['ip'])
     if type == "tcp":
-        res = tcp_delay_query(addr, row['ip'])
-        threadLock.acquire()
-        ans.append({
-            'Id': row['id'],
-            'CurrDelay': res,
-            'Type': type})
-        threadLock.release()
-        return
+        res = tcp_delay_query(addr, agent['ip'])
     if type == "dns":
-        res = dns_delay_query(addr, row['ip'])
-        threadLock.acquire()
-        ans.append({
-            'Id': row['id'],
-            'CurrDelay': res,
-            'Type': type})
-        threadLock.release()
+        res = dns_delay_query(addr, agent['ip'])
+    threadLock.acquire()
+    ans.append({
+        'Id': agent['id'],
+        'CurrDelay': res,
+        'Type': type})
+    threadLock.release()
 
 
 def icmp_delay_query(target, addr):
@@ -217,7 +218,10 @@ from dns import resolver
 
 
 @bp.get("/check")
-@bp.doc("通过指定的解析器获取指定域名的A/AAAA记录", hide=True)
+@bp.doc("通过指定的解析器获取指定域名的A/AAAA记录", description="参数说明:</br>" +
+                                                                "rev:解析器的IP地址</br>"
+                                                                + "domain:查询的目标域名</br>"
+                                                                + "qtype:查询的记录类型")
 @bp.input({
     'rev': String(required=True),
     'domain': String(required=True),
