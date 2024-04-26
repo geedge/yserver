@@ -1,5 +1,6 @@
 # 系统信息接口
 import datetime
+import random
 
 from apiflask import APIBlueprint, Schema
 from apiflask.fields import Date, Integer, Nested, Dict, DateTime, String, List
@@ -110,10 +111,11 @@ def sys_log(query_data):
     log_list = []
     # TODO:具体实现
     for i in range(per_page):
+        name=fake.name()
         log_list.append({
             "time": fake.date_time_between(start_date="-1y"),
             "level": fake.word(ext_word_list=["INFO", "WARNING", "ERROR"]),
-            "info": fake.text(max_nb_chars=20, ext_word_list=None),
+            "info": random.choice([name+"已登录","新增一个状态感知代理","新增一个目标感知代理","新增一个攻击渗透代理",name+"创建了一个任务",name+"已退出","存在离线代理！请检查","任务"+str(fake.random.randint(1, 10000))+"执行完毕！","任务"+str(fake.random.randint(1, 10000))+"已开始！"]),
             "user": fake.name(),
             "ip": fake.ipv4()
         })

@@ -204,7 +204,7 @@ proto_type = ['IPv6', 'DNSSEC', "DoH", "DoT"]
 
 
 @bp.get("/check")
-@bp.doc("通过指定的解析器获取指定域名的A/AAAA/CNAME/NS记录")
+@bp.doc("通过指定的解析器获取指定域名的A/AAAA/CNAME/NS记录","rev参数可选范围:{114.114.114.114,223.5.5.5,8.8.8.8,119.29.29.29}")
 @bp.input({
     'rev': String(required=True),
     'domain': String(required=True),

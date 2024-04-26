@@ -139,7 +139,7 @@ def tasks_state(query_data):
             "target": fake.ipv4(),
             "name": "示例任务",
             "agent": fake.random.randint(1, 10000),
-            "target_domain": fake.domain_name(),
+            "target_domain": random.choice(["www.baidu.com","www.qq.com","www.bing.com","www.google.com","www.facebook.com","www.bilibili.com"]),
             "target_rr": "NS attack.com",
             "policy": random.choice(["auto", "ddos", "sjqp"]),
             "create_time": fake.date_time_between(start_date="-1y"),
