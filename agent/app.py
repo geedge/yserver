@@ -59,7 +59,7 @@ def nodeinfo():
 
     # 内存信息
     ram_size = int(psutil.virtual_memory().total / (1024 * 1024 * 1024))
-    ram_per = psutil.virtual_memory().percent
+    ram_per = psutil.virtual_memory().percent / 100
 
     # 操作系统
     system = platform.system()
@@ -72,7 +72,7 @@ def nodeinfo():
 def registernode(proto="http", port=2525, atype="gjst", server="127.0.0.1:8888"):
     info = nodeinfo()
     info["port"] = port
-    info["atype"] = atype_map[atype]
+    info["atype"] = atype
     print(info)
     r = requests.post(proto + "://" + server + "/agent/register", json=info)
     if r.status_code != 200:

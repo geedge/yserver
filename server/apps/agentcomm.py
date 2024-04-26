@@ -1,6 +1,7 @@
 # 代理通信与注册接口
 import random
 
+import requests
 from apiflask import APIBlueprint, Schema
 from apiflask.fields import String, Integer, List, Nested, Boolean, DateTime, Float
 from apiflask.validators import OneOf
@@ -94,7 +95,6 @@ def register_agent(json_data):
              "lng": data["lng"], "cpunum": data["cpu_num"], "mem": str(data["ram_size"]) + "GB" + "(" + str(
             '{:.2f}'.format(100 * (1 - float(data["ram_per"])))) + "%" + "可用)", "sys": data["sys"], "status": True,
              "idle": True, "port": data["port"], "atype": data["atype"], "tab": MYSQL_TAB_AGENT}
-    # 数据库表名
 
     # 插入记录
     err = insert_agent(param)
@@ -105,12 +105,27 @@ def register_agent(json_data):
 
 
 # 代理任务下发
-# TODO:具体实现
 def deliver_task(agent_id, policy, policy_param):
-    # 查询agent_id对应代理的ip和端口信息
-    # 将policy和policy_param作为参数传递到对应接口
-    pass
-    return None
+    if policy == "ops":
+        # TODO:控制代理
+        return None
+    else:
+        # 查询agent_id对应代理的ip和端口信息
+        sql = """
+        SELECT IPADDR, PORT
+        FROM %s
+        WHERE AGENT_ID = '%s'
+        """ % (MYSQL_TAB_AGENT, agent_id)
+        da.cursor.execute(sql)
+        data = da.cursor.fetchall()
+        ip, port = data[0]['IPADDR'], data[0]['PORT']
+        # 将policy和policy_param作为参数传递到对应接口
+        res = requests.post("http://%s:%s/script" % (ip, port), json={'policy': policy, 'param': policy_param})
+        if res.status_code == 200:
+            return None
+        else:
+            error("任务分发错误，code: " + str(res.status_code) + " err: " + str(res.text))
+            return res.text
 
 
 @bp.post("/res")
@@ -220,9 +235,9 @@ def insert_agent(param: dict):
             '%(sys)s',
             '%(port)s',
             '%(cpunum)s',
-            '%(status)s',
+            %(status)s,
             '%(mem)s',
-            '%(idle)s)';""" % param
+            %(idle)s);""" % param
     try:
         da.cursor.execute(sql)
         da.conn.commit()
