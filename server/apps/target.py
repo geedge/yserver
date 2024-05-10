@@ -35,6 +35,8 @@ class TestNode(Schema):
     Name = String()
     Ip = String()
     Loc = String()
+    Lat = String()
+    Lng = String()
     # Port = Integer()
 
 
@@ -79,12 +81,15 @@ def get_nodes(query_data):
     node_list = []
     num = 10
     for i in range(num):
-        city = fake.province()
+        city=fake.province()
+        geo_info = fake.local_latlng(country_code='CN')
         node_list.append({
             "Id": str(i),
-            "Name": city + "测试节点",
+            "Name": "测试节点"+str(i),
             "Ip": fake.ipv4(),
             "Loc": city,
+            "Lat": geo_info[0],
+            "Lng": geo_info[1],
         })
     return {"code": 200, "nodes": node_list}
 
