@@ -7,6 +7,7 @@ from apps.sysinfo import bp as sysbp
 from apps.sysmange import bp as mangbp
 from apps.target import bp as targetbp
 from apps.task import bp as taskbp
+from apps.login import bp as loginbp
 
 # 注册蓝图
 app = APIFlask(__name__, template_folder='./static/templates')
@@ -22,7 +23,8 @@ app.register_blueprint(taskbp)
 app.register_blueprint(mangbp)
 # 系统状态获取接口
 app.register_blueprint(sysbp)
-
+# 登录退出接口
+app.register_blueprint(loginbp)
 
 @app.get('/')
 @app.doc("获取测试页面")

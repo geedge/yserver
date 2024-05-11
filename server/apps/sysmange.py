@@ -4,6 +4,8 @@ from apiflask import APIBlueprint, Schema
 from apiflask.fields import String, Integer, DateTime, List, Nested
 
 from .util import fake
+from .util import da, error
+from settings import *
 
 bp = APIBlueprint("系统管理接口集合", __name__, url_prefix="/user")
 
@@ -59,6 +61,24 @@ def list_user(query_data):
     "msg": String()
 })
 def create_user(json_data):
-    # TODO:具体实现
-    print(json_data)
+    # TODO 用户组
+    sql = f"""INSERT INTO {MYSQL_TAB_USER}(
+        USER_ID,
+        USER_NAME,
+        CREATED_BY,
+        USER_PWD_HASH,
+        USER_GROUP) 
+        VALUES(
+            '{json_data["account"]}',
+            '{json_data["username"]}',
+            '{json_data["cur_user"]}',
+            '{json_data["pwd"]}',
+            'normal');"""
+    print(sql)
+    try:
+        da.cursor.execute(sql)
+        da.conn.commit()
+    except Exception as e:
+        error(message=str(e))
+        return e
     return {"code": 200, "msg": "ok"}
