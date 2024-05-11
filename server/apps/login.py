@@ -15,11 +15,11 @@ bp = APIBlueprint("登录退出接口集合", __name__, url_prefix="/login")
 })
 @bp.output({
     # 响应码
-    "code": Integer,
+    "code": Integer(),
     # 返回消息
-    "msg": String,
+    "msg": String(),
     # 是否成功登录
-    "status": String,
+    "status": String(),
 })
 # TODO:登录处理(For 石昊月师弟)
 def login(json_data):
@@ -35,11 +35,11 @@ def login(json_data):
 })
 @bp.output({
     # 响应码
-    "code": Integer,
+    "code": Integer(),
     # 返回消息
-    "msg": String,
+    "msg": String(),
     # 是否成功退出
-    "status": String,
+    "status": String(),
 })
 # TODO:退出处理(For 石昊月师弟)
 def logout(json_data):
