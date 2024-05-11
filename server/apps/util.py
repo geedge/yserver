@@ -1,4 +1,5 @@
 # 工具包
+import ipaddress
 import sys
 
 import pymysql
@@ -179,7 +180,7 @@ class DataHandler:
         # 完全一致
         if len(differ) == 0:
             if not count:
-                sql = """SELECT * FROM %s LIMIT %s, %s""" % (tabname, offset, offset + limit)
+                sql = """SELECT * FROM %s LIMIT %s, %s;""" % (tabname, offset, offset + limit)
                 self.cursor.execute(sql)
                 return self.cursor.fetchall()
             else:
@@ -195,7 +196,7 @@ class DataHandler:
                 # 参数在数据表中对应的字段名
                 tab_key = model.keymapping[data_type][key]
                 if model.typemapping[key] == "str":
-                    condition[tab_key] = "\"".join(["", str(val), ""])
+                    condition[tab_key] = "\'".join(["", str(val), ""])
                 else:
                     condition[tab_key] = str(val)
             if not count:
@@ -228,17 +229,6 @@ class DataHandler:
 da = DataHandler()
 
 
-# 将插入mysql中的字符串处理为满足mysql形式的单引号字符串，输入为字典形式
-def string_to_mysql(data: dict):
-    res = {}
-    for key, val in data.items():
-        if type(val) == type("text"):
-            res[key] = "\'" + val + "\'"
-        else:
-            res[key] = val
-    return res
-
-
 def debug(message, *args, **kwargs):
     logger.debug(message, *args, **kwargs)
 
@@ -249,3 +239,12 @@ def info(message, *args, **kwargs):
 
 def error(message, *args, **kwargs):
     logger.error(message, *args, **kwargs)
+
+
+# 判断是否为IP地址，若是返回4(IPv4)或6(IPv6),否则返回None
+def is_ipaddress(address: str):
+    try:
+        ip = ipaddress.ip_address(address)
+        return int(ip.version)
+    except ValueError:
+        return None

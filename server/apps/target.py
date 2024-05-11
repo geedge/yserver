@@ -1,6 +1,7 @@
 # 目标状态感知
 # 时延测试接口
 import threading
+import json
 
 import pandas as pd
 import requests
@@ -95,34 +96,20 @@ def get_pernode_delay(query_data, type):
 threadLock = threading.Lock()
 
 
-def task(ans, addr, row, type):
+def task(ans, addr, agent, type):
+    res = 0
     if type == "icmp":
-        res = icmp_delay_query(addr, row['ip'])
-        threadLock.acquire()
-        ans.append({
-            'Id': row['id'],
-            'CurrDelay': res,
-            'Type': type})
-        threadLock.release()
-        return
+        res = icmp_delay_query(addr, agent['ip'])
     if type == "tcp":
-        res = tcp_delay_query(addr, row['ip'])
-        threadLock.acquire()
-        ans.append({
-            'Id': row['id'],
-            'CurrDelay': res,
-            'Type': type})
-        threadLock.release()
-        return
+        res = tcp_delay_query(addr, agent['ip'])
     if type == "dns":
-        res = dns_delay_query(addr, row['ip'])
-        threadLock.acquire()
-        ans.append({
-            'Id': row['id'],
-            'CurrDelay': res,
-            'Type': type})
-        threadLock.release()
-
+        res = dns_delay_query(addr, agent['ip'])
+    threadLock.acquire()
+    ans.append({
+        'Id': agent['id'],
+        'CurrDelay': res,
+        'Type': type})
+    threadLock.release()
 
 def icmp_delay_query(target, addr):
     try:
@@ -180,7 +167,10 @@ from dns import resolver
 
 
 @bp.get("/check")
-@bp.doc("通过指定的解析器获取指定域名的A/AAAA记录", hide=True)
+@bp.doc("通过指定的解析器获取指定域名的A/AAAA记录", description="参数说明:</br>" +
+                                                                "rev:解析器的IP地址</br>"
+                                                                + "domain:查询的目标域名</br>"
+                                                                + "qtype:查询的记录类型")
 @bp.input({
     'rev': String(required=True),
     'domain': String(required=True),
@@ -223,6 +213,7 @@ def record(query_data):
         for r in myAnswers.rrset:
             ans.append({"rrset": str(r)})
     return {"code": 200, 'ans': ans}
+
 
 
 @bp.get("/")
