@@ -1,21 +1,22 @@
 # 系统管理——用户管理
 
 from apiflask import APIBlueprint, Schema
-from apiflask.fields import String, Integer, DateTime, List, Nested
+from apiflask.fields import String, Integer, List, Dict
 
 from .util import fake
 from .util import da, error
 from settings import *
-
+from model import User, model_to_dict_list
+from exts import db
 bp = APIBlueprint("系统管理接口集合", __name__, url_prefix="/user")
 
 
-class User(Schema):
-    account = String()
-    username = String()
-    time = DateTime()
-    created_by = String()
-    group = String()
+# class User(Schema):
+#     account = String()
+#     username = String()
+#     time = DateTime()
+#     created_by = String()
+#     group = String()
 
 
 @bp.get("/")
@@ -26,26 +27,15 @@ class User(Schema):
 }, location='query')
 @bp.output({
     "code": Integer(),
-    "data": List(Nested(User())),
+    "data": List(Dict()),
     "total": Integer()
+
 })
 def list_user(query_data):
     # TODO：具体实现
-    if query_data['page'] == 1:
-        user_list = [
-            {"account": "Root", "username": "管理员", "time": fake.date_time_between(start_date='-10y', end_date='-9y'),
-             "created_by": "", "group": "Admin"}]
-    else:
-        user_list = []
-    for _ in range(query_data["per_page"] - len(user_list)):
-        user_list.append({
-            "account": fake.vin(),
-            "username": fake.name(),
-            "time": fake.date_time_between("-1y"),
-            "created_by": "管理员",
-            "group": "Admin"
-        })
-    return {"code": 200, "data": user_list}
+    page_limit = User.query.paginate(page = query_data['page'],per_page=query_data['per_page']).items
+    users = model_to_dict_list(page_limit)
+    return {"code": 200, "data": users, "total":len(users)}
 
 
 @bp.post("/")
@@ -61,23 +51,16 @@ def list_user(query_data):
     "msg": String()
 })
 def create_user(json_data):
-    # TODO 用户组
-    sql = f"""INSERT INTO {MYSQL_TAB_USER}(
-        USER_ID,
-        USER_NAME,
-        CREATED_BY,
-        USER_PWD_HASH,
-        USER_GROUP) 
-        VALUES(
-            '{json_data["account"]}',
-            '{json_data["username"]}',
-            '{json_data["cur_user"]}',
-            '{json_data["pwd"]}',
-            'normal');"""
-    print(sql)
+    us = User(
+        user_id = json_data["account"],
+        user_name = json_data["username"],
+        created_by = json_data["cur_user"],
+        user_pwd_hash = json_data["pwd"],
+        user_group = 'normal'
+    )
     try:
-        da.cursor.execute(sql)
-        da.conn.commit()
+        db.session.add(us)
+        db.session.commit()
     except Exception as e:
         error(message=str(e))
         return e

@@ -1,6 +1,6 @@
 from apiflask import APIFlask
 from flask_cors import CORS
-
+from exts import db
 import settings
 from apps.agentcomm import bp as agentbp
 from apps.sysinfo import bp as sysbp
@@ -25,6 +25,9 @@ app.register_blueprint(mangbp)
 app.register_blueprint(sysbp)
 # 登录退出接口
 app.register_blueprint(loginbp)
+
+app.config["SQLALCHEMY_DATABASE_URI"] = f"mysql+pymysql://root:{settings.MYSQL_PAWD}@{settings.MYSQL_HOST}:{settings.MYSQL_PORT}/{settings.MYSQL_DATADB}"
+db.init_app(app)
 
 @app.get('/')
 @app.doc("获取测试页面")
