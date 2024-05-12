@@ -1,13 +1,14 @@
 # 代理通信与注册接口
 import random
 
+import requests
 from apiflask import APIBlueprint, Schema
 from apiflask.fields import String, Integer, List, Nested, Boolean, DateTime, Float
 from apiflask.validators import OneOf
 from flask import request
 
 from settings import *
-from .util import da, error, string_to_mysql
+from .util import da, error
 
 bp = APIBlueprint("代理管理接口集合", __name__, url_prefix="/agent")
 
@@ -55,7 +56,7 @@ class agent(Schema):
 @bp.post("/register")
 @bp.doc("代理注册接口", "返回分配给代理的编号值，用于代理和主控端通信注册，前端界面无需调用")
 @bp.input({
-    "atype": String(),
+    "atype": String(validate=OneOf(["gjst", "ztgz", "csgz"])),
     'v6addr': List(String()),
     'lat': String(),
     'lng': String(),
@@ -90,24 +91,10 @@ def register_agent(json_data):
     data = dict(json_data)
     id = "".join(random.sample('1234567890zyxwvutsrqponmlkjihgfedcba', 8))
     # 代理所有参数
-    param = {"id": id,
-             "ipaddr": "|".join([request.remote_addr] + [i for i in data["v6addr"]]),
-             # "start_time",在数据库中实现
-             "lat": data["lat"],
-             "lng": data["lng"],
-             "cpunum": data["cpu_num"],
-             "mem": str(data["ram_size"]) + "GB" + "(" + str(
-                 '{:.2f}'.format(100 * (1 - float(data["ram_per"])))) + "%" + "可用)",
-             "sys": data["sys"],
-             "status": True,
-             "idle": True,
-             "port": data["port"],
-             "atype": data["atype"],
-             }
-    # 对字符串值进行处理
-    param = string_to_mysql(param)
-    # 数据库表名
-    param["tab"] = MYSQL_TAB_AGENT
+    param = {"id": id, "ipaddr": "|".join([request.remote_addr] + [i for i in data["v6addr"]]), "lat": data["lat"],
+             "lng": data["lng"], "cpunum": data["cpu_num"], "mem": str(data["ram_size"]) + "GB" + "(" + str(
+            '{:.2f}'.format(100 * (1 - float(data["ram_per"])))) + "%" + "可用)", "sys": data["sys"], "status": True,
+             "idle": True, "port": data["port"], "atype": data["atype"], "tab": MYSQL_TAB_AGENT}
 
     # 插入记录
     err = insert_agent(param)
@@ -118,11 +105,27 @@ def register_agent(json_data):
 
 
 # 代理任务下发
-# TODO:具体实现
 def deliver_task(agent_id, policy, policy_param):
-    # 查询agent_id对应代理的ip和端口信息
-    # 将policy和policy_param作为参数传递到对应接口
-    pass
+    if policy == "ops":
+        # TODO:控制代理
+        return None
+    else:
+        # 查询agent_id对应代理的ip和端口信息
+        sql = """
+        SELECT IPADDR, PORT
+        FROM %s
+        WHERE AGENT_ID = '%s'
+        """ % (MYSQL_TAB_AGENT, agent_id)
+        da.cursor.execute(sql)
+        data = da.cursor.fetchall()
+        ip, port = data[0]['IPADDR'], data[0]['PORT']
+        # 将policy和policy_param作为参数传递到对应接口
+        res = requests.post("http://%s:%s/script" % (ip, port), json={'policy': policy, 'param': policy_param})
+        if res.status_code == 200:
+            return None
+        else:
+            error("任务分发错误，code: " + str(res.status_code) + " err: " + str(res.text))
+            return res.text
 
 
 @bp.post("/res")
@@ -138,7 +141,7 @@ def task_ret(json_data):
         "ok" -- 成功执行
     """
     sql = """INSERT INTO %s(CREATED_BY_AGENT,TLOG_LEVEL,TLOG_INFO,TLOG_TP)
-    VALUES(%s,%s,%s,%s)
+    VALUES('%s','%s','%s','%s')
     """ % (MYSQL_TAB_TASK_LOG, json_data["id"], json_data["level"], json_data["info"],
            json_data["taskpolicy"])
     try:
@@ -224,16 +227,16 @@ def insert_agent(param: dict):
             MEM,
             IDLE) 
             VALUES(
-            %(id)s,
-            %(ipaddr)s,
-            %(lat)s,
-            %(lng)s,
-            %(atype)s,
-            %(sys)s,
-            %(port)s,
-            %(cpunum)s,
+            '%(id)s',
+            '%(ipaddr)s',
+            '%(lat)s',
+            '%(lng)s',
+            '%(atype)s',
+            '%(sys)s',
+            '%(port)s',
+            '%(cpunum)s',
             %(status)s,
-            %(mem)s,
+            '%(mem)s',
             %(idle)s);""" % param
     try:
         da.cursor.execute(sql)

@@ -1,16 +1,15 @@
 # 目标状态感知
 # 时延测试接口
+import random
 import threading
-import json
 
-import pandas as pd
 import requests
 from apiflask import APIBlueprint, Schema
 from apiflask.fields import Integer, String, List, Nested, IP, DateTime, Dict
 from requests.exceptions import Timeout
 
 from settings import *
-from .util import da, debug
+from .util import da, fake
 
 bp = APIBlueprint("目标信息及状态接口集合", __name__, url_prefix="/target")
 
@@ -46,7 +45,9 @@ class TestNode(Schema):
     Name = String()
     Ip = String()
     Loc = String()
-    Port = Integer()
+    Lat = String()
+    Lng = String()
+    # Port = Integer()
 
 
 class Delay(Schema):
@@ -72,24 +73,52 @@ class CouInfo(Schema):
     value = Integer()
 
 
+@bp.get("/nodes")
+@bp.doc("参与探测的节点信息获取接口", "传入任务编号taskid")
+@bp.input({
+    "taskid": String(required=True)
+}, location="query")
+@bp.output({
+    "code": Integer(),
+    "nodes": List(Nested(TestNode()))
+})
+def get_nodes(query_data):
+    node_list = []
+    num = 10
+    for i in range(num):
+        city = fake.province()
+        geo_info = fake.local_latlng(country_code='CN')
+        node_list.append({
+            "Id": str(i),
+            "Name": "测试节点" + str(i),
+            "Ip": fake.ipv4(),
+            "Loc": city,
+            "Lat": geo_info[0],
+            "Lng": geo_info[1],
+        })
+    return {"code": 200, "nodes": node_list}
+
+
 @bp.get("/delay/<string:type>")
-@bp.doc("获取每个节点的时延数据", "type参数为{icmp,dns,tcp}中的一个", hide=True)
+@bp.doc("获取每个节点的时延数据", "type参数为{icmp,dns,tcp}中的一个")
 @bp.input({"ip": IP(required=False)}, location="query")
 @bp.output(DelayOut)
-def get_pernode_delay(query_data, type):
+def get_pernode_delay(query_data, scan_type):
     # TODO:节点选择
     addr = ""
     if 'ip' in query_data.keys():
         addr = query_data['ip']
     ans = []
-    threads = []
-    df = pd.read_csv("./server.csv", encoding="utf-8")
-    for index, row in df.iterrows():
-        mythread = threading.Thread(target=task, args=[ans, addr, row, type])
-        mythread.start()
-        threads.append(mythread)
-    for t in threads:
-        t.join()
+    # threads = []
+    # df = pd.read_csv("./server.csv", encoding="utf-8")
+    # for index, row in df.iterrows():
+    #     mythread = threading.Thread(target=task, args=[ans, addr, row, type])
+    #     mythread.start()
+    #     threads.append(mythread)
+    # for t in threads:
+    #     t.join()
+    for i in range(10):
+        ans.append({"Id": str(i), "Type": scan_type, "CurrDelay": random.randint(1, 1000)})
     return {"code": 200, 'delay_data': ans}
 
 
@@ -110,6 +139,7 @@ def task(ans, addr, agent, type):
         'CurrDelay': res,
         'Type': type})
     threadLock.release()
+
 
 def icmp_delay_query(target, addr):
     try:
@@ -215,7 +245,6 @@ def record(query_data):
     return {"code": 200, 'ans': ans}
 
 
-
 @bp.get("/")
 @bp.doc("(表格)目标信息获取接口", "返回目标信息")
 @bp.input({
@@ -265,7 +294,7 @@ def target_info(query_data):
         # 支持的协议特殊处理
         protocol = []
         for k, v in r.items():
-            debug(k + ":" + str(v))
+            # debug(k + ":" + str(v))
             if k in ["IPv6", "DNSSEC", "DOH", "DOT"] and bool(v) is True:
                 protocol.append(k)
         target["protocol"] = protocol
@@ -332,9 +361,9 @@ def map_info(query_data):
         if differ == set():
             # 在数据表中进行分组查询,无额外筛选
             sql = """
-                SELECT T.COU,sum(T.c) as R,sum(T.dnssec) as DNSSEC,sum(T.v6) as IPv6,sum(T.dh) as DoH,sum(T.dt) as DoT 
+                SELECT T.COU,sum(T.c) as R,sum(T.dsec) as DSEC,sum(T.v6) as IPv6,sum(T.dh) as DoH,sum(T.dt) as DoT 
                 FROM
-                (SELECT COU,count(*) as c,count(DNSSEC=1 or null) as dnssec,count(IPv6=1 or null) as v6,count(DOH=1 or null) as dh,count(DOT=1 or null) as dt
+                (SELECT COU,count(*) as c,count(DNSSEC=1 or null) as dsec,count(IPv6=1 or null) as v6,count(DOH=1 or null) as dh,count(DOT=1 or null) as dt
                 FROM %s 
                 GROUP BY COU,DNSSEC,IPv6,DOH,DOT) as T GROUP BY T.COU;""" % (MYSQL_TAB_TARGETDATA)
         else:
@@ -352,9 +381,9 @@ def map_info(query_data):
                     condition[key] = "\"".join(["", str(val), ""])
             # 在数据表中进行分组查询,无额外筛选
             sql = """
-                SELECT T.COU,sum(T.c) as R,sum(T.dnssec) as DNSSEC,sum(T.v6) as IPv6,sum(T.dh) as DoH,sum(T.dt) as DoT 
+                SELECT T.COU,sum(T.c) as R,sum(T.dsec) as DSEC,sum(T.v6) as IPv6,sum(T.dh) as DoH,sum(T.dt) as DoT 
                 FROM
-                (SELECT COU,count(*) as c,count(DNSSEC=1 or null) as dnssec,count(IPv6=1 or null) as v6,count(DOH=1 or null) as dh,count(DOT=1 or null) as dt
+                (SELECT COU,count(*) as c,count(DNSSEC=1 or null) as dsec,count(IPv6=1 or null) as v6,count(DOH=1 or null) as dh,count(DOT=1 or null) as dt
                 FROM %s 
                 WHERE %s 
                 GROUP BY COU,DNSSEC,IPv6,DOH,DOT) as T GROUP BY T.COU;""" % (

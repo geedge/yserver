@@ -1,7 +1,6 @@
 # 任务管理接口
 import json
 import uuid
-import random
 
 from apiflask import APIBlueprint, Schema
 from apiflask.fields import String, Integer, IP, DateTime, List, Nested
@@ -28,7 +27,7 @@ task_response_map = {
 
 
 class Task(Schema):
-    id = Integer()
+    id = String()
     target = String()
     name = String()
     agent = String()
@@ -66,12 +65,14 @@ class TaskState(Schema):
     # 效果评估
     policy_status = String()
 
+
 # 任务创建参数逻辑合法性检查
 def valid_task_info(task_param: dict):
     if task_param["policy"] == "sjqp":
         if task_param["target_rr"] == "" or task_param["tdomain"] == "":
             return "数据欺骗缺乏目标域名或注入参数"
     return None
+
 
 # 创建任务接口
 @bp.post("/create")
@@ -104,7 +105,7 @@ def valid_task_info(task_param: dict):
     "code": Integer(),
     "msg": String()
 })
-# TODO：创建任务接口具体实现
+# TODO：TARGET处理
 def make_task(json_data):
     # 请求参数转储到变量
     name = json_data["name"]
@@ -224,13 +225,13 @@ def make_task(json_data):
     return {"code": 200, "msg": "ok"}
 
 
-
 opsmap = {"start": "开始", "stop": "暂停", "cancel": "停止"}
 statemap = {"working": "执行中", "stop": "暂停", "finish": "结束"}
 # 合法逻辑映射，例如不能让一个暂停的任务开始，或是让一个正在运行的任务停止
 ops_state = {"start": ["stop"], "stop": ["working"], "cancel": ["working", "stop"]}
 # 操作与状态结果的映射关系
 ops_state_result = {"start": "working", "stop": "stop", "cancel": "finish"}
+
 
 # 操作任务开始停止控制接口
 @bp.post("/ops")
@@ -243,7 +244,6 @@ ops_state_result = {"start": "working", "stop": "stop", "cancel": "finish"}
     "code": Integer(),
     "msg": String(),
 })
-# TODO：操作任务开始停止控制接口具体实现
 def ops_task(json_data):
     ops = json_data["ops"]
     # 操作中文名
@@ -289,7 +289,7 @@ def ops_task(json_data):
     "data": List(Nested(Task())),
     "total": Integer()
 })
-# TODO：查询任务状态接口具体实现
+# TODO：DoH适配
 def tasks_state(query_data):
     per_page = query_data["per_page"]
     page = query_data["page"]
@@ -373,6 +373,7 @@ def taskpolicy_log(query_data):
     } for _ in range(per_page)]
 
     return {"code": 200, "data": policy_output, "total": 10 * per_page}
+
 
 @bp.doc("任务删除接口", "输入参数说明：</br>"
         + "id: 任务编号")
