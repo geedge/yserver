@@ -6,7 +6,6 @@ import threading
 import requests
 from apiflask import APIBlueprint, Schema
 from apiflask.fields import Integer, String, List, Nested, IP, DateTime, Dict
-from apiflask.validators import OneOf
 from requests.exceptions import Timeout
 
 from .util import fake
@@ -81,11 +80,11 @@ def get_nodes(query_data):
     node_list = []
     num = 10
     for i in range(num):
-        city=fake.province()
+        city = fake.province()
         geo_info = fake.local_latlng(country_code='CN')
         node_list.append({
             "Id": str(i),
-            "Name": "测试节点"+str(i),
+            "Name": "测试节点" + str(i),
             "Ip": fake.ipv4(),
             "Loc": city,
             "Lat": geo_info[0],
@@ -98,23 +97,40 @@ def get_nodes(query_data):
 @bp.doc("获取每个节点的时延数据,单位为ms", "type参数为{icmp,dns,tcp}中的一个,target为目标IP或DoH目标域名")
 @bp.input({
     "target": String(required=True),
-    "type": String(required=True, validate=OneOf(["icmp", "dns", "tcp"]))}, location="query")
+    "taskid": String(required=True),
+    "type": String()}, location="query")
 @bp.output(DelayOut)
+# TODO:联调测试
 def get_pernode_delay(query_data):
     target = query_data["target"]
     scan_type = query_data["type"]
     ans = []
-    # threads = []
-    # # df = pd.read_csv("./server.csv", encoding="utf-8")
-    # for index, row in df.iterrows():
-    #     # mythread = threading.Thread(target=task, args=[ans, target, row, scan_type])
-    #     mythread.start()
-    #     threads.append(mythread)
-    # for t in threads:
-    #     t.join()
     for i in range(10):
         ans.append({"Id": str(i), "Type": scan_type, "CurrDelay": random.randint(1, 1000)})
     return {"code": 200, 'delay_data': ans}
+
+
+# @bp.get("/delay")
+# @bp.doc("获取每个节点的时延数据,单位为ms", "type参数为{icmp,dns,tcp}中的一个,target为目标IP或DoH目标域名")
+# @bp.input({
+#     "target": String(required=True),
+#     "type": String(required=True, validate=OneOf(["icmp", "dns", "tcp"]))}, location="query")
+# @bp.output(DelayOut)
+# def get_pernode_delay(query_data):
+#     target = query_data["target"]
+#     scan_type = query_data["type"]
+#     ans = []
+#     # threads = []
+#     # # df = pd.read_csv("./server.csv", encoding="utf-8")
+#     # for index, row in df.iterrows():
+#     #     # mythread = threading.Thread(target=task, args=[ans, target, row, scan_type])
+#     #     mythread.start()
+#     #     threads.append(mythread)
+#     # for t in threads:
+#     #     t.join()
+#     for i in range(10):
+#         ans.append({"Id": str(i), "Type": scan_type, "CurrDelay": random.randint(1, 1000)})
+#     return {"code": 200, 'delay_data': ans}
 
 
 threadLock = threading.Lock()
@@ -209,7 +225,8 @@ proto_type = ['IPv6', 'DNSSEC', "DoH", "DoT"]
 
 
 @bp.get("/check")
-@bp.doc("通过指定的解析器获取指定域名的A/AAAA/CNAME/NS记录","rev参数可选范围:{114.114.114.114,223.5.5.5,8.8.8.8,119.29.29.29}")
+@bp.doc("通过指定的解析器获取指定域名的A/AAAA/CNAME/NS记录",
+        "rev参数可选范围:{114.114.114.114,223.5.5.5,8.8.8.8,119.29.29.29}")
 @bp.input({
     'rev': String(required=True),
     'domain': String(required=True),
