@@ -6,6 +6,7 @@ import threading
 import requests
 from apiflask import APIBlueprint, Schema
 from apiflask.fields import Integer, String, List, Nested, IP, DateTime, Dict
+from apiflask.validators import OneOf
 from requests.exceptions import Timeout
 
 from .util import fake
@@ -98,9 +99,8 @@ def get_nodes(query_data):
 @bp.input({
     "target": String(required=True),
     "taskid": String(required=True),
-    "type": String()}, location="query")
+    "type": String(required=True, validate=OneOf(['icmp', 'dns', 'tcp']))}, location="query")
 @bp.output(DelayOut)
-# TODO:联调测试
 def get_pernode_delay(query_data):
     target = query_data["target"]
     scan_type = query_data["type"]
