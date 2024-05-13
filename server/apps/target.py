@@ -6,6 +6,7 @@ import threading
 import requests
 from apiflask import APIBlueprint, Schema
 from apiflask.fields import Integer, String, List, Nested, IP, DateTime, Dict
+from apiflask.validators import OneOf
 from requests.exceptions import Timeout
 
 from settings import *
@@ -107,18 +108,20 @@ def get_nodes(query_data):
     return {"code": 200, "nodes": node_list}
 
 
-@bp.get("/delay/<string:type>")
+@bp.get("/delay")
 @bp.doc("获取每个节点的时延数据", "type参数为{icmp,dns,tcp}中的一个")
 @bp.input({
     "ip": IP(required=True),
-    "taskid": String(required=True)}, location="query")
+    "taskid": String(required=True),
+    "type": String(required=True, validate=OneOf(['icmp', 'dns', 'tcp']))}, location="query")
 @bp.output(DelayOut)
 # TODO:联调测试
-def get_pernode_delay(query_data, type):
+def get_pernode_delay(query_data):
     # TODO:DoH处理
     # 探测地址
     addr = query_data['ip']
     taskid = query_data['taskid']
+    type = query_data['type']
 
     # 响应数据
     ans = []
