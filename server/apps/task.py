@@ -375,6 +375,16 @@ def taskpolicy_log(query_data):
     } for _ in range(per_page)]
 
     return {"code": 200, "data": policy_output, "total": 10 * per_page}
+    task_logs = TaskPolicy.query.paginate(tp_id=query_data['id'], page = query_data['page'],per_page=query_data['per_page'])
+    data = [{
+        "time": log.created_time,
+        "ip": log.ip,
+        "targetip": log.target_ip,
+        "level": log.level,
+        "info": log.info
+    } for log in task_logs.items]
+
+    return {"code": 200, "data": data, "total": 10 * per_page}
 
 
 @bp.doc("任务删除接口", "输入参数说明：</br>"
