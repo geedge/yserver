@@ -1,6 +1,9 @@
 # 登录
 from apiflask import APIBlueprint
-from apiflask.fields import String, Integer
+from apiflask.fields import String, Integer, Boolean
+
+from model import User
+from exts import db
 
 bp = APIBlueprint("登录退出接口集合", __name__, url_prefix="/login")
 
@@ -19,11 +22,15 @@ bp = APIBlueprint("登录退出接口集合", __name__, url_prefix="/login")
     # 返回消息
     "msg": String(),
     # 是否成功登录
-    "status": String(),
+    "status": Boolean(),
 })
-# TODO:登录处理(For 石昊月师弟)
+
 def login(json_data):
-    pass
+    users = db.session.execute(db.select(User).filter_by(user_name=json_data["username"])).scalars()
+    for user in users:
+        if user.user_pwd_hash == json_data["pwd"]:
+            return {"code":200, "status":True, "msg":user.user_id}
+    return {"code":200, "status":False, "msg":""}
 
 
 # 用户退出处理函数
@@ -39,8 +46,12 @@ def login(json_data):
     # 返回消息
     "msg": String(),
     # 是否成功退出
-    "status": String(),
+    "status": Boolean(),
 })
 # TODO:退出处理(For 石昊月师弟)
 def logout(json_data):
-    pass
+    return {
+        "code": 200,
+        "msg":"退出成功",
+        "status":True
+    }

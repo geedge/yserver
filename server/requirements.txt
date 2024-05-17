@@ -12,3 +12,4 @@ loguru~=0.5.3
 flask-cors
 bidict~=0.23.1
 flask_sqlalchemy
+cryptography

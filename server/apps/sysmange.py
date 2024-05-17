@@ -1,22 +1,12 @@
 # 系统管理——用户管理
 
-from apiflask import APIBlueprint, Schema
+from apiflask import APIBlueprint
 from apiflask.fields import String, Integer, List, Dict
 
-from .util import fake
-from .util import da, error
-from settings import *
+from .util import error
 from model import User, model_to_dict_list
 from exts import db
 bp = APIBlueprint("系统管理接口集合", __name__, url_prefix="/user")
-
-
-# class User(Schema):
-#     account = String()
-#     username = String()
-#     time = DateTime()
-#     created_by = String()
-#     group = String()
 
 
 @bp.get("/")
@@ -32,7 +22,6 @@ bp = APIBlueprint("系统管理接口集合", __name__, url_prefix="/user")
 
 })
 def list_user(query_data):
-    # TODO：具体实现
     page_limit = User.query.paginate(page = query_data['page'],per_page=query_data['per_page']).items
     users = model_to_dict_list(page_limit)
     return {"code": 200, "data": users, "total":len(users)}
@@ -51,6 +40,7 @@ def list_user(query_data):
     "msg": String()
 })
 def create_user(json_data):
+    # TODO 用户组
     us = User(
         user_id = json_data["account"],
         user_name = json_data["username"],

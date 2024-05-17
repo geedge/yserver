@@ -1,6 +1,8 @@
 
 from exts import db
 from settings import MYSQL_TAB_USER
+import json
+import datetime
 
 class User(db.Model):
     __tablename__ = MYSQL_TAB_USER
@@ -10,8 +12,6 @@ class User(db.Model):
     created_time = db.Column(db.TIMESTAMP,  server_default=db.func.now())
     user_pwd_hash = db.Column(db.String(255))
     user_group =db.Column(db.String(255))
-import json
-import datetime
  
 #对单个模型操作
 def model_to_dict(model, fields=None,exchange_fields=None):
