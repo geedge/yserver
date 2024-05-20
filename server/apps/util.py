@@ -135,11 +135,6 @@ class DataHandler:
         `USER_PWD_HASH` varchar(255),
         `USER_GROUP` varchar(255)) ENGINE=innodb DEFAULT CHARSET=utf8;""" % MYSQL_TAB_USER
 
-        # 和task_policysql存在双向外键引用的问题，需要额外定义
-        fkey = """
-        ALTER TABLE %s ADD CONSTRAINT `fk_TASK_TASK_POLICY_1`
-        FOREIGN KEY(`POLICY`) REFERENCES %s(`TP_ID`)""" % (
-            MYSQL_TAB_TASK, MYSQL_TAB_TASKPOLICY)
 
         # 执行sql语句
         try:
@@ -159,8 +154,7 @@ class DataHandler:
             self.cursor.execute(tasklogsql)
             self.conn.commit()
 
-            # 创建外键
-            self.cursor.execute(fkey)
+
         except Exception as e:
             # 重复外键
             if str(e).find("(1826"):
