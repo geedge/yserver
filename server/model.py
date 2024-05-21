@@ -21,7 +21,7 @@ class Task(db.Model):
     created_by = db.Column(db.String(255), db.ForeignKey(f'{MYSQL_TAB_USER}.user_id'))
     target_ip = db.Column(db.String(255))
     created_time = db.Column(db.DateTime, server_default=db.func.now())
-    policy = db.Column(db.Integer, db.ForeignKey(f'{MYSQL_TAB_TASKPOLICY}.tp_id'))
+    policy = db.Column(db.Integer)
     status = db.Column(db.String(255))
     policy_delay = db.Column(db.String(255))
     task_delay = db.Column(db.String(255))
@@ -30,9 +30,9 @@ class Task(db.Model):
     target_rtype = db.Column(db.String(255))
     target_rr = db.Column(db.String(255))
 
-    # # Relationships
-    # agent = db.relationship('Agent', backref='tasks')
-    # user = db.relationship('User', backref='tasks')
+    # Relationships
+    agent = db.relationship('Agent', backref='tasks')
+    user = db.relationship('User', backref='tasks')
 
 class TaskLog(db.Model):
     __tablename__ = MYSQL_TAB_TASK_LOG
@@ -43,21 +43,21 @@ class TaskLog(db.Model):
     tlog_info = db.Column(db.String(255))
     tlog_tp = db.Column(db.Integer, db.ForeignKey(f'{MYSQL_TAB_TASKPOLICY}.tp_id'))
 
-    # # Relationships
-    # agent = db.relationship('Agent', backref='task_logs')
-    # task_policy = db.relationship('TaskPolicy', backref='task_logs')
+    # Relationships
+    agent = db.relationship('Agent', backref='task_logs')
+    task_policy = db.relationship('TaskPolicy', backref='task_logs')
 
 class TaskPolicy(db.Model):
     __tablename__ = MYSQL_TAB_TASKPOLICY
     tp_id = db.Column(db.Integer, primary_key=True, autoincrement=True, nullable=False)
     tp_time = db.Column(db.DateTime, server_default=db.func.now())
-    policy = db.Column(db.String(255), db.ForeignKey('{MYSQL_TAB_POLICY}.p_id'))
+    policy = db.Column(db.String(255), db.ForeignKey(f'{MYSQL_TAB_POLICY}.p_id'))
     policy_param = db.Column(db.String(255))
     for_task = db.Column(db.String(255), db.ForeignKey(f'{MYSQL_TAB_TASK}.task_id'))
 
-    # # Relationships
-    # policy_ref = db.relationship('Policy', backref='task_policies')
-    # task = db.relationship('Task', backref='task_policies')
+    # Relationships
+    policy_ref = db.relationship('Policy', backref='task_policies')
+    task = db.relationship('Task', backref='task_policies')
 
 class Agent(db.Model):
     __tablename__ = MYSQL_TAB_AGENT
@@ -93,8 +93,8 @@ class Syslog(db.Model):
     s_ip = db.Column(db.String(255))
     user_id = db.Column(db.String(255), db.ForeignKey(f'{MYSQL_TAB_USER}.user_id'))
 
-    # # Relationships
-    # user = db.relationship('User', backref='syslogs')
+    # Relationships
+    user = db.relationship('User', backref='syslogs')
 
 class Target(db.Model):
     __tablename__ = MYSQL_TAB_TARGETDATA

@@ -8,6 +8,9 @@ from apiflask.validators import OneOf
 from settings import *
 from .util import da
 
+from model import Syslog, User
+from exts import db
+
 bp = APIBlueprint("仪表盘接口", __name__, url_prefix="/sys")
 
 log_map = {
@@ -112,25 +115,33 @@ def target_date():
     "log_data": List(Nested(LogOut())),
     "total": Integer()
 })
-# TODO:完善功能，根据时间或日志等级或用户名筛选获取日志数据(For 石昊月师弟)
 def sys_log(query_data):
-    # 每页显示多少项
-    per_page = query_data["per_page"]
-    # 页数
-    page = query_data["page"]
-    tabs = {
-        "syslog": MYSQL_TAB_SYSLOG,
-        "user": MYSQL_TAB_USER,
-        "start": (page - 1) * per_page,
-        "stop": (page - 1) * per_page + per_page
-    }
-    sql = """SELECT 
-        s.LOG_LEVEL as level,
-        s.LOG_INFO as info, 
-        s.LOG_TIME as time,
-        s.S_IP as ip,
-        CONCAT(u.USER_NAME,"(ID:",u.USER_ID,")") as user
-    from %(syslog)s s,%(user)s u WHERE s.USER_ID=u.USER_ID LIMIT %(start)s,%(stop)s  """ % tabs
-    da.cursor.execute(sql)
-    log_list = da.cursor.fetchall()
-    return {"log_data": log_list}
+    begin = query_data.get('begin')
+    end = query_data.get('end')
+    level = query_data.get('level')
+    user = query_data.get('user')
+    per_page = query_data.get('per_page')
+    page = query_data.get('page')
+    query = db.session.query(Syslog, User).join(User, Syslog.user_id == User.user_id)
+    if begin:
+        query = query.filter(db.func.date(Syslog.log_time) >= begin)
+    if end:
+        query = query.filter(db.func.date(Syslog.log_time) <= end)
+    if level:
+        query = query.filter(Syslog.log_level == level)
+    if user:
+        query = query.filter(User.user_name == user)
+    # 分页
+    pagination = query.paginate(page=page, per_page=per_page)
+
+    log_data = [{
+        "time": log.Syslog.log_time,
+        "level": log.Syslog.log_level,
+        "info": log.Syslog.log_info,
+        "user": log.User.user_name,
+        "ip": log.Syslog.s_ip
+    } for log in pagination.items]
+    
+    return {"code":200, 
+            "log_data": log_data,
+            "total": pagination.total}
