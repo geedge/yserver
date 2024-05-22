@@ -10,6 +10,9 @@ from .agentcomm import deliver_task
 from .policy import *
 from .util import fake, da, error, debug
 
+from model import TaskPolicy, TaskLog
+from exts import db
+
 bp = APIBlueprint("任务管理接口集合", __name__, url_prefix="/task")
 
 # 数据库列与返回值的键对应关系
@@ -352,8 +355,7 @@ def task_info(query_data):
 @bp.get("/tp")
 @bp.doc("任务策略执行日志获取接口")
 @bp.input({
-    # 任务策略id (taskpolicy)
-    "id": String(required=True),
+    "id": Integer(required=True),
     "per_page": Integer(load_default=10),
     "page": Integer(load_default=1)
 }, location="query")
@@ -362,29 +364,33 @@ def task_info(query_data):
     "data": List(Nested(TaskLog())),
     "total": Integer()
 })
-# TODO：功能实现(For 石昊月师弟)
+
 def taskpolicy_log(query_data):
+    id = query_data["id"]
     per_page = query_data["per_page"]
     page = query_data["page"]
-    policy_output = [{
-        "time": fake.date_time_between(start_date="-1y"),
-        "ip": "192.168.1.1",
-        "targetip": "2406:1234:1234:1234:1234:1234:1234:1234",
-        "level": random.choice(["INFO", "WARNING", "ERROR"]),
-        "info": fake.text(max_nb_chars=20, ext_word_list=None)
-    } for _ in range(per_page)]
+    task_policy = db.session.get(TaskPolicy, id)
+    if task_policy is None:
+        return {"code": 404}
+    
+    logs = task_policy.task_logs
+    # 分页
+    total = len(logs)
+    start = (page - 1) * per_page
+    end = start + per_page
+    paginated_logs = logs[start:end]
 
-    return {"code": 200, "data": policy_output, "total": 10 * per_page}
-    task_logs = TaskPolicy.query.paginate(tp_id=query_data['id'], page = query_data['page'],per_page=query_data['per_page'])
-    data = [{
+    log_data = [{
         "time": log.created_time,
-        "ip": log.ip,
-        "targetip": log.target_ip,
-        "level": log.level,
-        "info": log.info
-    } for log in task_logs.items]
+        "targetip": log.task_policy.task.target_ip,
+        "ip": log.task_policy.task.agent.ipaddr,
+        "level": log.tlog_level,
+        "info": log.tlog_info
+    } for log in paginated_logs]
 
-    return {"code": 200, "data": data, "total": 10 * per_page}
+    return {"code": 200,
+            "data": log_data,
+            "total": total}
 
 
 @bp.doc("任务删除接口", "输入参数说明：</br>"
