@@ -94,13 +94,16 @@ def valid_task_info(task_param: dict):
     "policy": String(validate=OneOf(["auto", "ddos", "sjqp"])),
     # 状态感知方式
     "scan": String(validate=OneOf(["auto", "icmp", "dns", "tcp", "record"])),
-    # 策略切换时限
+    # 策略切换时限,单位分钟
     "policy_time": Integer(),
-    # 任务执行时限
+    # 任务执行时限，单位分钟
     "run_time": Integer(),
     # 运行配置
     "run_flag": String(validate=OneOf(["now", "man"]))
-})
+}, example={'name': "test_task", 'target': "1.2.3.4", 'agent': "8a9ces", 'target_domain': "www.google.com",
+            'target_rr': "NS ns.ourattack.com",
+            'policy': "auto", 'scan': "auto",
+            'policy_time': 60, "run_time": 600, 'run_flag': "now"})
 @bp.output({
     "code": Integer(),
     "msg": String()
@@ -144,7 +147,8 @@ def make_task(json_data):
     if warn is not None:
         return {"code": 400, "msg": warn}
     if task_info["target_rr"] != "":
-        task_info["target_rtype"], task_info["target_rr"] = tuple(task_info["target_rr"].split(" "))
+        rr = task_info["target_rr"].split(" ")
+        task_info["target_rtype"], task_info["target_rr"] = rr[0], rr[1]
 
     # 添加表名
     task_info["tab"] = MYSQL_TAB_TASK

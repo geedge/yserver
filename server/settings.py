@@ -1,6 +1,8 @@
 import datetime
 
 DEBUG = True
+# 是否以运行效果模拟状态运行，用于控制和代理通信的处理
+RUN_DEV = True
 SERVER_PORT = 12526
 START_DAY = datetime.date.today()
 

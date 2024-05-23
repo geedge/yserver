@@ -118,14 +118,26 @@ def deliver_task(agent_id, policy, policy_param):
         """ % (MYSQL_TAB_AGENT, agent_id)
         da.cursor.execute(sql)
         data = da.cursor.fetchall()
-        ip, port = data[0]['IPADDR'], data[0]['PORT']
+
+        # 解析代理的ipv4地址和通信端口
+        # 如果代理有多个地址，则会以"|"分隔，详见register_agent函数
+        # 第一个永远是ipv4地址（在代理向ipv4地址的端口注册信息的前提下），详见register_agent函数
+        ip, port = str(data[0]['IPADDR']).split("|")[0], data[0]['PORT']
+
         # 将policy和policy_param作为参数传递到对应接口
-        res = requests.post("http://%s:%s/script" % (ip, port), json={'policy': policy, 'param': policy_param})
-        if res.status_code == 200:
-            return None
-        else:
+        try:
+            res = requests.post("http://%s:%s/script" % (ip, port), timeout=3,
+                                json={'policy': policy, 'param': policy_param})
+            if res.status_code == 200:
+                return None
             error("任务分发错误，code: " + str(res.status_code) + " err: " + str(res.text))
             return res.text
+        except Exception as e:
+            if RUN_DEV:
+                return None
+            else:
+                error(str(e))
+                return str(e)
 
 
 @bp.post("/res")

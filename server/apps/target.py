@@ -6,6 +6,7 @@ import threading
 import requests
 from apiflask import APIBlueprint, Schema
 from apiflask.fields import Integer, String, List, Nested, IP, DateTime, Dict
+from apiflask.validators import OneOf
 from requests.exceptions import Timeout
 
 from settings import *
@@ -99,24 +100,44 @@ def get_nodes(query_data):
     return {"code": 200, "nodes": node_list}
 
 
-@bp.get("/delay/<string:type>")
+@bp.get("/delay")
 @bp.doc("获取每个节点的时延数据", "type参数为{icmp,dns,tcp}中的一个")
-@bp.input({"ip": IP(required=False)}, location="query")
+@bp.input({
+    "ip": IP(required=True),
+    "taskid": String(required=True),
+    "type": String(required=True, validate=OneOf(['icmp', 'dns', 'tcp']))}, location="query")
 @bp.output(DelayOut)
-def get_pernode_delay(query_data, scan_type):
-    # TODO:节点选择
-    addr = ""
-    if 'ip' in query_data.keys():
-        addr = query_data['ip']
+# TODO:和实际节点联调测试
+def get_pernode_delay(query_data):
+    # TODO:DoH处理
+    # 探测地址
+    addr = query_data['ip']
+    taskid = query_data['taskid']
+    scan_type = query_data['type']
+
+    # 响应数据
     ans = []
-    # threads = []
-    # df = pd.read_csv("./server.csv", encoding="utf-8")
-    # for index, row in df.iterrows():
-    #     mythread = threading.Thread(target=task, args=[ans, addr, row, type])
+    # 线程池
+    threads = []
+    # # 检索探测节点信息
+    # sql = """
+    # SELECT SCAN_AGENT_ID_LIST as node_info
+    # FROM %s
+    # WHERE TASK_ID='%s'
+    # """ % (MYSQL_TAB_TASK, taskid)
+    # da.cursor.execute(sql)
+    # # 探测节点ID与地址
+    # nodes = json.loads(da.cursor.fetchall()[0]["node_info"].replace('"', "\""))
+    #
+    # for id, ip in nodes.items():
+    #     mythread = threading.Thread(target=task, args=[ans, addr, {'id': id, 'ip': ip}, type])
     #     mythread.start()
     #     threads.append(mythread)
     # for t in threads:
     #     t.join()
+
+    # 暂未部署实际代理节点，以假数据返回
+    ans = []
     for i in range(10):
         ans.append({"Id": str(i), "Type": scan_type, "CurrDelay": random.randint(1, 1000)})
     return {"code": 200, 'delay_data': ans}
