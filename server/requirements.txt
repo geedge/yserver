@@ -2,7 +2,7 @@ requests~=2.31.0
 Flask~=3.0.0
 APIFlask~=2.1.0
 click~=8.1.7
-numpy~=1.25.0
+numpy~=1.26.3
 six~=1.16.0
 pandas~=2.1.4
 faker~=18.9.0
@@ -11,3 +11,5 @@ pymysql~=1.1.0
 loguru~=0.5.3
 flask-cors
 bidict~=0.23.1
+flask_sqlalchemy
+cryptography
