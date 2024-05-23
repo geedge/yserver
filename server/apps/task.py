@@ -399,6 +399,8 @@ def del_task(json_data):
     try:
         da.cursor.execute(sql)
         da.conn.commit()
+        if da.cursor.rowcount == 0:
+            return {"code": "404", "msg": "该任务id未找到！"}
     except Exception as e:
         error(str(e))
         return {"code": 500, "msg": str(e)}
