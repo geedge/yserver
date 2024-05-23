@@ -11,7 +11,7 @@ from apps.task import bp as taskbp
 # 注册蓝图
 app = APIFlask(__name__, template_folder='./static/templates')
 # 跨域支持
-CORS(app)
+CORS(app, origins='*')
 # 目标状态获取接口
 app.register_blueprint(targetbp)
 # 代理接口
