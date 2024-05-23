@@ -3,3 +3,4 @@
 *.pyc
 ./server/app/__pycache__
 *.yaml
+.vscode/
