@@ -9,6 +9,7 @@ from settings import *
 from .util import da
 
 from model import Syslog, User
+from sqlalchemy import func
 from exts import db
 
 bp = APIBlueprint("仪表盘接口", __name__, url_prefix="/sys")
@@ -47,17 +48,19 @@ class LogOut(Schema):
     "target": Nested(TargetOut())
 })
 def systate():
+    from model import Agent, Task, Target
     # 已部署代理节点数量
-    agent_num = da.count_data("agent")
+    agent_num = db.session.query(Agent).count()
     # 已执行任务数量（包括执行完毕和正在执行）
-    task_num = da.count_data("task")
+    task_num = db.session.query(Task).count()
     # 系统已运行天数
-    workday = datetime.date.today() - START_DAY
+    workday = (datetime.date.today() - START_DAY).days
     # 已探测目标统计
-    v6dns_num = da.count_data("target", {"IPv6": True})
-    dnssec_num = da.count_data("target", {"DNSSEC": True})
-    doh_num = da.count_data("target", {"DOH": True})
-    dot_num = da.count_data("target", {"DOT": True})
+    v6dns_num = db.session.query(Target).filter(Target.ipv6 == True).count()
+    dnssec_num = db.session.query(Target).filter(Target.dnssec == True).count()
+    doh_num = db.session.query(Target).filter(Target.doh == True).count()
+    dot_num = db.session.query(Target).filter(Target.dot == True).count()
+
     # 返回结果
     return {
         "code": 200,
