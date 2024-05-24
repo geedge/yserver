@@ -5,11 +5,12 @@ from apiflask.fields import String, Integer, Boolean
 from model import User
 from exts import db
 
-bp = APIBlueprint("登录退出接口集合", __name__, url_prefix="/login")
+bp = APIBlueprint("登录退出接口集合", __name__, url_prefix="/auth")
 
+# TODO 使用cookie
 
 # 用户登录处理函数
-@bp.post("/")
+@bp.post("/login")
 @bp.doc("登录接口",
         description="输入用户名和密码，返回响应码code，消息msg以及是否成功登陆标识status</br>若成功登录则msg返回用户编号")
 @bp.input({
@@ -34,7 +35,7 @@ def login(json_data):
 
 
 # 用户退出处理函数
-@bp.post("/")
+@bp.post("/logout")
 @bp.doc("退出登录接口", description="输入用户名和用户编号，返回响应码code，消息msg以及是否成功退出标识status")
 @bp.input({
     "id": String(),
@@ -48,7 +49,6 @@ def login(json_data):
     # 是否成功退出
     "status": Boolean(),
 })
-# TODO:退出处理(For 石昊月师弟)
 def logout(json_data):
     return {
         "code": 200,

@@ -1,13 +1,19 @@
 # 系统管理——用户管理
 
-from apiflask import APIBlueprint
-from apiflask.fields import String, Integer, List, Dict
+from apiflask import APIBlueprint, Schema
+from apiflask.fields import String, Integer, List, DateTime, List, Nested
 
 from .util import error
-from model import User, model_to_dict_list
+from model import User
 from exts import db
 bp = APIBlueprint("系统管理接口集合", __name__, url_prefix="/user")
 
+class UserSchema(Schema):
+    account = String()
+    username = String()
+    time = DateTime()
+    created_by = String()
+    group = String()
 
 @bp.get("/")
 @bp.doc("系统用户信息获取接口", description="返回当前系统中所有用户")
@@ -17,14 +23,21 @@ bp = APIBlueprint("系统管理接口集合", __name__, url_prefix="/user")
 }, location='query')
 @bp.output({
     "code": Integer(),
-    "data": List(Dict()),
+    "data": List(Nested(UserSchema())),
     "total": Integer()
 
 })
 def list_user(query_data):
-    page_limit = User.query.paginate(page = query_data['page'],per_page=query_data['per_page']).items
-    users = model_to_dict_list(page_limit)
-    return {"code": 200, "data": users, "total":len(users)}
+    query = db.session.query(User)
+    pagination = query.paginate(page = query_data['page'],per_page=query_data['per_page'])
+    users = [{
+        "account" : user.user_id,
+        "username" : user.user_name,
+        "time" : user.created_time,
+        "created_by" : user.created_by,
+        "group" : user.user_group,
+    } for user in pagination.items]
+    return {"code": 200, "data": users, "total":pagination.total}
 
 
 @bp.post("/")
