@@ -6,11 +6,10 @@ from apiflask.validators import OneOf
 
 # 测试用
 from settings import *
-from .util import da
-
-from model import Syslog, User
-from sqlalchemy import func
+from model import Syslog, User, Target, Agent
 from exts import db
+
+from datetime import timedelta
 
 bp = APIBlueprint("仪表盘接口", __name__, url_prefix="/sys")
 
@@ -48,7 +47,7 @@ class LogOut(Schema):
     "target": Nested(TargetOut())
 })
 def systate():
-    from model import Agent, Task, Target
+    from model import Task
     # 已部署代理节点数量
     agent_num = db.session.query(Agent).count()
     # 已执行任务数量（包括执行完毕和正在执行）
@@ -77,25 +76,31 @@ def systate():
 
 # 随时间的不同协议服务数量变化接口
 @bp.get("/num/date")
-@bp.doc("仪表盘柱状图数据获取接口", "返回当前不同探测目标在一周内的数量变化情况")
+@bp.doc("仪表盘柱状图数据获取接口", "查询一周内每天不同探测目标的数量")
 @bp.output({
     "code": Integer(),
     "date_data": Dict(Date(), Nested(TargetOut()))
 })
 def target_date():
+    # 计算过去七天的日期范围
     today = datetime.date.today()
-    dates = {}
-    day = 1
-    while day < 8:
-        d = today - datetime.timedelta(day)
-        dates[d] = {
-            "v6dns": da.count_data_by_time("target", time=d, search={"IPv6": True}),
-            "dnssec": da.count_data_by_time("target", time=d, search={"DNSSEC": True}),
-            "doh": da.count_data_by_time("target", time=d, search={"DOH": True}),
-            "dot": da.count_data_by_time("target", time=d, search={"DOT": True})
+    seven_days_ago = today - timedelta(days=7)
+    
+    # 查询过去七天每一天的数据
+    date_data = {}
+    for i in range(7):
+        current_date = seven_days_ago + timedelta(days=i)
+        data = db.session.query(Target).filter(
+                Target.updated_time >= current_date, 
+                Target.updated_time < current_date + timedelta(days=1))
+        
+        date_data[current_date] = {
+            "v6dns": data.filter(Target.ipv6 == True).count(),
+            "dnssec": data.filter(Target.dnssec == True).count(),
+            "doh": data.filter(Target.doh == True).count(),
+            "dot": data.filter(Target.dot == True).count()
         }
-        day += 1
-    return {"code": 200, "date_data": dates}
+    return {"code": 200, "date_data": date_data}
 
 
 # 系统操作日志获取接口
