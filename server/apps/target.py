@@ -382,9 +382,9 @@ def map_info(query_data):
         if differ == set():
             # 在数据表中进行分组查询,无额外筛选
             sql = """
-                SELECT T.COU,sum(T.c) as R,sum(T.dsec) as DSEC,sum(T.v6) as IPv6,sum(T.dh) as DoH,sum(T.dt) as DoT 
+                SELECT T.COU,sum(T.c) as R,sum(T.dnsec) as DNSEC,sum(T.v6) as IPv6,sum(T.dh) as DoH,sum(T.dt) as DoT 
                 FROM
-                (SELECT COU,count(*) as c,count(DNSSEC=1 or null) as dsec,count(IPv6=1 or null) as v6,count(DOH=1 or null) as dh,count(DOT=1 or null) as dt
+                (SELECT COU,count(*) as c,count(DNSSEC=1 or null) as dnsec,count(IPv6=1 or null) as v6,count(DOH=1 or null) as dh,count(DOT=1 or null) as dt
                 FROM %s 
                 GROUP BY COU,DNSSEC,IPv6,DOH,DOT) as T GROUP BY T.COU;""" % (MYSQL_TAB_TARGETDATA)
         else:
@@ -395,16 +395,16 @@ def map_info(query_data):
                 key, val = differ.pop()
                 # 协议参数在数据表中对应的字段名
                 if key == "proto":
-                    condition[{'IPv6': "IPv6", "DNSSEC": "DNSSEC", "DoH": "DOH", "DoT": "DOT"}[val]] = str(True)
+                    condition[{'IPv6': "IPv6", "DNSEC": "DNSSEC", "DoH": "DOH", "DoT": "DOT"}[val]] = str(True)
                 else:
                     # 国家和isp属性的键只需调整字母为大写
                     key = key.upper()
                     condition[key] = "\"".join(["", str(val), ""])
             # 在数据表中进行分组查询,无额外筛选
             sql = """
-                SELECT T.COU,sum(T.c) as R,sum(T.dsec) as DSEC,sum(T.v6) as IPv6,sum(T.dh) as DoH,sum(T.dt) as DoT 
+                SELECT T.COU,sum(T.c) as R,sum(T.dnsec) as DNSEC,sum(T.v6) as IPv6,sum(T.dh) as DoH,sum(T.dt) as DoT 
                 FROM
-                (SELECT COU,count(*) as c,count(DNSSEC=1 or null) as dsec,count(IPv6=1 or null) as v6,count(DOH=1 or null) as dh,count(DOT=1 or null) as dt
+                (SELECT COU,count(*) as c,count(DNSSEC=1 or null) as dnsec,count(IPv6=1 or null) as v6,count(DOH=1 or null) as dh,count(DOT=1 or null) as dt
                 FROM %s 
                 WHERE %s 
                 GROUP BY COU,DNSSEC,IPv6,DOH,DOT) as T GROUP BY T.COU;""" % (
@@ -415,11 +415,10 @@ def map_info(query_data):
         data = da.cursor.fetchall()
         for d in data:
             # 单一国家的数据
-            value = [d['IPv6'], d['DNSSEC'], d['DoH'], d['DoT']]
             cou_data = {
                 "name": d['COU'],
                 'title': "支持各类协议的解析器数量为：{IPv6：" + str(d['IPv6']) + "，DNSSEC：" + str(
-                    d['DNSSEC']) + "，DoH：" + str(d['DoH']) + "，DoT：" + str(d['DoT']) + "}",
+                    d['DNSEC']) + "，DoH：" + str(d['DoH']) + "，DoT：" + str(d['DoT']) + "}",
                 "value": d['R']
             }
             cou_list.append(cou_data)
