@@ -6,12 +6,11 @@ from apiflask import APIBlueprint, Schema
 from apiflask.fields import String, Integer, IP, DateTime, List, Nested
 from apiflask.validators import OneOf
 
+from exts import db
+from model import TaskPolicy
 from .agentcomm import deliver_task
 from .policy import *
-from .util import fake, da, error, debug
-
-from model import TaskPolicy, TaskLog
-from exts import db
+from .util import da, error, debug
 
 bp = APIBlueprint("任务管理接口集合", __name__, url_prefix="/task")
 
@@ -340,17 +339,21 @@ def task_info(query_data):
     da.cursor.execute(sql)
     data = da.cursor.fetchall()
     task_state_list = []
-    # 过往记录
-    for d in data:
-        task_state_list.append({
-            "start_time": d["tp_time"],
-            "policy_name": d["p_name"],
-            "policy_param": d["tp_param"],
-            "policy_id": d["tp_id"],
-            "policy_status": "无效；原因为：超时未成功"
-        })
-    # 最后一项为当前正在执行的策略
-    task_state_list[-1]["policy_status"] = "评估中"
+    # 判断是否不存在该任务
+    if len(data) == 0:
+        return {"code": 404, "data": []}
+    else:
+        # 过往记录
+        for d in data:
+            task_state_list.append({
+                "start_time": d["tp_time"],
+                "policy_name": d["p_name"],
+                "policy_param": d["tp_param"],
+                "policy_id": d["tp_id"],
+                "policy_status": "无效；原因为：超时未成功"
+            })
+        # 最后一项为当前正在执行的策略
+        task_state_list[-1]["policy_status"] = "评估中"
     return {"code": 200, "data": task_state_list}
 
 
@@ -366,7 +369,6 @@ def task_info(query_data):
     "data": List(Nested(TaskLog())),
     "total": Integer()
 })
-
 def taskpolicy_log(query_data):
     id = query_data["id"]
     per_page = query_data["per_page"]
