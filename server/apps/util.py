@@ -101,6 +101,7 @@ class DataHandler:
         `TARGET_DOMAIN` varchar(255),
         `TARGET_RTYPE` varchar(255),
         `TARGET_RR` varchar(255),
+        `SCAN_AGENT_ID_LIST` json,
         FOREIGN KEY(`AGENT_ID`) REFERENCES %s(`AGENT_ID`),
         FOREIGN KEY(`CREATED_BY`) REFERENCES %s(`USER_ID`)
         )ENGINE=innodb DEFAULT CHARSET=utf8; """ % (
@@ -134,7 +135,6 @@ class DataHandler:
         `CREATED_TIME` datetime DEFAULT CURRENT_TIMESTAMP,
         `USER_PWD_HASH` varchar(255),
         `USER_GROUP` varchar(255)) ENGINE=innodb DEFAULT CHARSET=utf8;""" % MYSQL_TAB_USER
-
 
         # 执行sql语句
         try:
@@ -196,7 +196,7 @@ class DataHandler:
             if not count:
                 sql = """SELECT * FROM %s WHERE %s LIMIT %s, %s""" % (
                     tabname, " AND ".join(["=".join(condition.popitem()) for _ in range(l)]), offset, offset + limit)
-                print(sql)
+                # print(sql)
                 self.cursor.execute(sql)
                 return self.cursor.fetchall()
             else:

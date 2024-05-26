@@ -10,7 +10,7 @@ from exts import db
 from model import TaskPolicy
 from .agentcomm import deliver_task
 from .policy import *
-from .util import da, error, debug
+from .util import da, error
 
 bp = APIBlueprint("任务管理接口集合", __name__, url_prefix="/task")
 
@@ -208,7 +208,7 @@ def make_task(json_data):
     '%(nodes)s'
     );
     """ % task_info
-    debug(sql)
+    # debug(sql)
     da.cursor.execute(sql)
     da.conn.commit()
 

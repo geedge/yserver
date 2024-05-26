@@ -14,10 +14,10 @@ def init_task_policy(ptype, target, task):
         res = da.get_data(data_type="target", search={""})
     # IPv4
     elif ip_version == 4:
-        res = da.get_data(data_type="target", search={"ADDRv4": target})[0]
+        res = da.get_data(data_type="target", search={"ADDRv4": target})
     # IPv6
     elif ip_version == 6:
-        res = da.get_data(data_type="target", search={"ADDRv6": target})[0]
+        res = da.get_data(data_type="target", search={"ADDRv6": target})
     else:
         exit(1)
 
@@ -29,8 +29,9 @@ def init_task_policy(ptype, target, task):
         proto = ["IPv6", "DOH", "DOT", "DNSSEC"]
     # 存在该目标的记录
     else:
+        t = res[0]
         for k in ["IPv6", "DOH", "DOT", "DNSSEC"]:
-            if res[k]:
+            if t[k]:
                 proto.append(k)
 
     # 可选策略范围 policy
