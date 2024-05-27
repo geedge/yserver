@@ -175,10 +175,12 @@ class DataHandler:
         if len(differ) == 0:
             if not count:
                 sql = """SELECT * FROM %s LIMIT %s, %s;""" % (tabname, offset, offset + limit)
+                da.conn.ping(reconnect=True)
                 self.cursor.execute(sql)
                 return self.cursor.fetchall()
             else:
                 sql = """SELECT count(*) FROM %s""" % (tabname)
+                da.conn.ping(reconnect=True)
                 self.cursor.execute(sql)
                 return dict(self.cursor.fetchall()[0]).popitem()[1]
         else:
@@ -196,12 +198,13 @@ class DataHandler:
             if not count:
                 sql = """SELECT * FROM %s WHERE %s LIMIT %s, %s""" % (
                     tabname, " AND ".join(["=".join(condition.popitem()) for _ in range(l)]), offset, offset + limit)
-                # print(sql)
+                da.conn.ping(reconnect=True)
                 self.cursor.execute(sql)
                 return self.cursor.fetchall()
             else:
                 sql = """SELECT count(*) FROM %s WHERE %s LIMIT %s, %s""" % (
                     tabname, " AND ".join(["=".join(condition.popitem()) for _ in range(l)]), offset, limit)
+                da.conn.ping(reconnect=True)
                 self.cursor.execute(sql)
                 return dict(self.cursor.fetchall()[0]).popitem()[1]
 

@@ -208,7 +208,7 @@ def make_task(json_data):
     '%(nodes)s'
     );
     """ % task_info
-    # debug(sql)
+    da.conn.ping(reconnect=True)
     da.cursor.execute(sql)
     da.conn.commit()
 

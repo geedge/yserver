@@ -343,6 +343,7 @@ def filter_info():
     # 查询所有的isp
     isp_sql = """SELECT DISTINCT ISP from %s """ % MYSQL_TAB_TARGETDATA
     # 执行查询
+    da.conn.ping(reconnect=True)
     da.cursor.execute(isp_sql)
     isp_data = da.cursor.fetchall()
     isp = [i.popitem()[1] for i in isp_data]
@@ -350,6 +351,7 @@ def filter_info():
     # 查询所有的国家
     cou_sql = """SELECT DISTINCT COU from %s """ % MYSQL_TAB_TARGETDATA
     # 执行查询
+    da.conn.ping(reconnect=True)
     da.cursor.execute(cou_sql)
     cou_data = da.cursor.fetchall()
     cou = [i.popitem()[1] for i in cou_data]
@@ -411,6 +413,7 @@ def map_info(query_data):
                 MYSQL_TAB_TARGETDATA, " AND ".join(["=".join(condition.popitem()) for _ in range(l)]))
 
         # 执行查询
+        da.conn.ping(reconnect=True)
         da.cursor.execute(sql)
         data = da.cursor.fetchall()
         for d in data:

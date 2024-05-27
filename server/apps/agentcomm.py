@@ -116,6 +116,7 @@ def deliver_task(agent_id, policy, policy_param):
         FROM %s
         WHERE AGENT_ID = '%s'
         """ % (MYSQL_TAB_AGENT, agent_id)
+        da.conn.ping(reconnect=True)
         da.cursor.execute(sql)
         data = da.cursor.fetchall()
 
@@ -157,6 +158,7 @@ def task_ret(json_data):
     """ % (MYSQL_TAB_TASK_LOG, json_data["id"], json_data["level"], json_data["info"],
            json_data["taskpolicy"])
     try:
+        da.conn.ping(reconnect=True)
         da.cursor.execute(sql)
         da.conn.commit()
         return "ok"
@@ -215,6 +217,7 @@ def del_agent(json_data):
     sql = """DELETE FROM %s WHERE AGENT_ID = '%s'
     """ % (MYSQL_TAB_AGENT, json_data["id"])
     try:
+        da.conn.ping(reconnect=True)
         da.cursor.execute(sql)
         da.conn.commit()
         if da.cursor.rowcount == 0:
@@ -252,6 +255,7 @@ def insert_agent(param: dict):
             '%(mem)s',
             %(idle)s);""" % param
     try:
+        da.conn.ping(reconnect=True)
         da.cursor.execute(sql)
         da.conn.commit()
     except Exception as e:

@@ -49,6 +49,7 @@ def init_task_policy(ptype, target, task):
     FROM %s
     WHERE P_TYPE IN (%s) AND P_PROTO IN (%s)
     """ % (MYSQL_TAB_POLICY, "\'" + "\',\'".join(policy) + "\'", "\'" + "\',\'".join(proto) + "\'")
+    da.conn.ping(reconnect=True)
     da.cursor.execute(sql)
     policy_list = da.cursor.fetchall()
     # 随机选择一个作为初始策略
