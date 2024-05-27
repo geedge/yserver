@@ -409,6 +409,19 @@ def taskpolicy_log(query_data):
 })
 def del_task(json_data):
     taskid = json_data["id"]
+    # 首先删除所有有关联的执行策略
+    policysql = """
+    DELETE
+    FROM %s
+    WHERE FOR_TASK='%s'
+    """ % (MYSQL_TAB_TASKPOLICY, taskid)
+    try:
+        da.cursor.execute(policysql)
+        da.conn.commit()
+    except Exception as e:
+        error(str(e))
+        return {"code": 500, "msg": str(e)}
+    # 删除任务记录
     sql = """
     DELETE 
     FROM %s 
