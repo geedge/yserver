@@ -429,6 +429,9 @@ def map_info(query_data):
         # 查询目标，根据v4、v6地址分类
         res = da.get_data(data_type="target",
                           search={"ADDRv4": ip} if "." in str(ip) else {"ADDRv6": ip})
+        # 长度为0，不存在该ip的记录，返回404
+        if len(res) == 0:
+            return {"code": 404, "dataObject": {"earthAddTitle": []}}
         # 支持协议
         proto = []
         for p in ["IPv6", "DNSSEC", "DOH", "DOT"]:
