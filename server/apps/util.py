@@ -159,6 +159,15 @@ class DataHandler:
             # 重复外键
             if str(e).find("(1826"):
                 pass
+        # 完成初始化，重新以标明数据库的方式连接
+        try:
+            self.conn.close()
+            self.conn = pymysql.connect(cursorclass=DictCursor, host=MYSQL_HOST, user='root',
+                                        password=MYSQL_PAWD, port=MYSQL_PORT, database=MYSQL_DATADB)
+        except Exception as e:
+            error(str(e))
+            # 数据库连接失败，停止后续操作
+            sys.exit(1)
 
     # 获取信息(代理、任务)
     # data_type可选范围参照DataHandler.tabmapping的键
