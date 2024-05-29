@@ -10,10 +10,12 @@ import requests
 import yaml
 from apiflask import APIFlask
 
-from apps.delay import bp as scriptbp
+from apps.delay import bp as delaybp
+from apps.script import bp as scriptbp
 
 # 注册蓝图
 app = APIFlask(__name__, template_folder='./static/templates')
+app.register_blueprint(delaybp)
 app.register_blueprint(scriptbp)
 # 代理配置
 config = {}

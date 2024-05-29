@@ -2,13 +2,15 @@
 import subprocess
 from concurrent.futures import ThreadPoolExecutor
 
-import select
 from apiflask import APIBlueprint
 from apiflask.fields import String
+
+from .util import debug
 
 bp = APIBlueprint('script', __name__, url_prefix='/script')
 # 线程池
 executor = ThreadPoolExecutor(5)
+BASE_PATH = "./apps/code/"
 
 
 @bp.post('/')
@@ -17,12 +19,12 @@ executor = ThreadPoolExecutor(5)
     'policy': String(required=True),
     'param': String(required=True)
 })
-def start_script(query_data):
+def start_script(json_data):
     # 执行命令
-    exe = [query_data['name']]
+    exe = [BASE_PATH + json_data['policy']]
     # 执行参数
-    params = query_data['param'].split()
-    if '.py' in query_data['name']:
+    params = json_data['param'].split()
+    if '.py' in json_data['policy']:
         exe = ["python"] + exe
     # 通过
     executor.submit(process_script, exe + params)
@@ -33,21 +35,14 @@ def process_script(command):
     # 开始执行命令，不等待其执行完毕
     process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     while True:
-        # 使用select来监测stdout和stderr是否有数据
-        # select函数会阻塞，直到有数据可读
-        # 返回值是三个列表，第一个列表是可读的文件对象
-        readable, _, _ = select.select([process.stdout, process.stderr], [], [])
-
-        for stream in readable:
-            # 读取输出并转换成字符串
-            output = stream.readline().decode('utf-8')
-            if output:
-                # TODO:存储输出到数据库中
-                print(output.strip())
-
-        # 检查子进程是否结束
-        if process.poll() is not None:
+        output = process.stdout.readline().rstrip().decode('utf-8')
+        if output == '' and process.poll() is not None:
             break
+        if output == '':
+            continue
+        if output:
+            debug(output.strip())
 
     # 获取子进程的返回值
-    rc = process.wait()
+    rc = process.poll()
+    return rc
