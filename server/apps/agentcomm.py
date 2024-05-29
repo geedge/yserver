@@ -148,7 +148,7 @@ def task_ret(json_data):
     task_ret 代理输出信息接收
 
     Arguments:
-        json_data -- 请求中的json内容，必须包含"id"、"taskpolicy"、"level"和"info"两个keyword
+        json_data -- 请求中的json内容，必须包含"id"、"taskpolicy"、"level"和"info"四个keyword
 
     Returns:
         "ok" -- 成功执行
