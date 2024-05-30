@@ -442,4 +442,5 @@ def map_info(query_data):
             target.append({"name": r.cou,
                            "title": "该解析器支持：" + '、'.join(protocol) + " 协议",
                            "value": 1, })
+        query.close()
         return {"code": 200, "dataObject": {"earthAddTitle": target}}
