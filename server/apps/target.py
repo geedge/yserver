@@ -1,7 +1,9 @@
 # 目标状态感知
 # 时延测试接口
+import ipaddress
 import random
 import threading
+from operator import or_
 
 import requests
 from apiflask import APIBlueprint, Schema
@@ -9,8 +11,12 @@ from apiflask.fields import Integer, String, List, Nested, IP, DateTime, Dict
 from apiflask.validators import OneOf
 from requests.exceptions import Timeout
 
+from exts import db
+from model import Target
 from settings import *
 from .util import da, fake
+
+# from sqlalchemy import func
 
 bp = APIBlueprint("目标信息及状态接口集合", __name__, url_prefix="/target")
 
@@ -29,7 +35,7 @@ target_map = {
 }
 
 
-class Target(Schema):
+class TargetSchema(Schema):
     ipv4 = String()
     ipv6 = String()
     protocol = List(String())
@@ -278,7 +284,7 @@ def record(query_data):
 }, location='query')
 @bp.output({
     "code": Integer(),
-    "data": List(Nested(Target())),
+    "data": List(Nested(TargetSchema())),
     "total": Integer()
 })
 def target_info(query_data):
@@ -291,41 +297,49 @@ def target_info(query_data):
 
     # 目标信息列表
     target_list = []
-
+    query = db.session.query(Target)
     # 普通检索，默认所有条件为单选
     if ip is None:
-        # 无协议筛选
-        if proto == None:
-            res = da.get_data(data_type="target", search={"proto": proto, "cou": cou, "isp": isp},
-                              offset=(page - 1) * per_page, limit=per_page)
-            res_count = da.count_data(data_type="target", search={"proto": proto, "cou": cou, "isp": isp})
-        # 协议筛选，填入筛选的协议
-        else:
-            res = da.get_data(data_type="target", search={proto: True, "cou": cou, "isp": isp},
-                              offset=(page - 1) * per_page, limit=per_page)
-            res_count = da.count_data(data_type="target", search={proto: True, "cou": cou, "isp": isp})
+        # 分页查询
+        res = query.filter(
+            or_(Target.ipv6 == True, proto != 'IPv6'),
+            or_(Target.dnssec == True, proto != 'DNSSEC'),
+            or_(Target.doh == True, proto != 'DoH'),
+            or_(Target.dot == True, proto != 'DoT'),
+            or_(Target.cou == cou, cou == None),
+            or_(Target.isp == isp, isp == None)).paginate(page=page, per_page=per_page)
+        # 查询总数
+        res_count = res.total
     else:
         # 查询目标，根据v4、v6地址分类
-        res = da.get_data(data_type="target",
-                          search={"ADDRv4": ip} if "." in str(ip) else {"ADDRv6": ip})
-        res_count = da.count_data(data_type="target", search={"ADDRv4": ip} if "." in str(ip) else {"ADDRv6": ip})
+        res = query.filter(
+            or_(Target.addrv6 == ip, ipaddress.ip_address(ip).version != 6),
+            or_(Target.addrv4 == ip, ipaddress.ip_address(ip).version != 4)).all()
+        # 查询总数
+        res_count = len(res)
     # 结果转换
     for r in res:
-        target = {}
+        target = {
+            "ipv4": r.addrv4,
+            "ipv6": r.addrv6,
+            "cou": r.cou,
+            "isp": r.isp,
+            "lat": r.lat,
+            "lng": r.lng,
+            "time": r.updated_time
+        }
+
         # 支持的协议特殊处理
         protocol = []
-        for k, v in r.items():
-            # debug(k + ":" + str(v))
-            if k in ["IPv6", "DNSSEC", "DOH", "DOT"] and bool(v) is True:
+        # 目标各协议支持情况
+        proto_state = {"IPv6": r.ipv6, "DNSSEC": r.dnssec, "DoH": r.doh, "DoT": r.dot}
+        for k, v in proto_state.items():
+            if bool(v) is True:
                 protocol.append(k)
         target["protocol"] = protocol
+
         # 防护措施特殊处理
-        protect = str(r["PROTECT"]).split("|")
-        target["protect"] = protect
-        # 其他统一处理
-        for k in target_map.keys():
-            # 原数据的值赋给经过映射之后的键
-            target[target_map[k]] = r[k]
+        target["protect"] = str(r.protect).split("|")
         target_list.append(target)
     return {"code": 200, "data": target_list, "total": res_count}
 
