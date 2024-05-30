@@ -10,13 +10,12 @@ from apiflask import APIBlueprint, Schema
 from apiflask.fields import Integer, String, List, Nested, IP, DateTime, Dict
 from apiflask.validators import OneOf
 from requests.exceptions import Timeout
+from sqlalchemy import distinct
 
 from exts import db
 from model import Target
 from settings import *
 from .util import da, fake
-
-# from sqlalchemy import func
 
 bp = APIBlueprint("目标信息及状态接口集合", __name__, url_prefix="/target")
 
@@ -354,21 +353,19 @@ def target_info(query_data):
 })
 def filter_info():
     proto = ["IPv6", "DNSSEC", "DoH", "DoT"]
+
+    query_session = db.session
     # 查询所有的isp
-    isp_sql = """SELECT DISTINCT ISP from %s """ % MYSQL_TAB_TARGETDATA
+    isp_data = query_session.query(distinct(Target.isp)).all()
     # 执行查询
-    da.conn.ping(reconnect=True)
-    da.cursor.execute(isp_sql)
-    isp_data = da.cursor.fetchall()
-    isp = [i.popitem()[1] for i in isp_data]
+    isp = [i[0] for i in isp_data]
 
     # 查询所有的国家
-    cou_sql = """SELECT DISTINCT COU from %s """ % MYSQL_TAB_TARGETDATA
+    cou_data = query_session.query(distinct(Target.cou)).all()
     # 执行查询
-    da.conn.ping(reconnect=True)
-    da.cursor.execute(cou_sql)
-    cou_data = da.cursor.fetchall()
-    cou = [i.popitem()[1] for i in cou_data]
+    cou = [i[0] for i in cou_data]
+
+    query_session.close()
     return {"code": 200, "proto": proto, "isp": isp, "cou": cou}
 
 
