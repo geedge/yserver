@@ -10,12 +10,11 @@ from apiflask import APIBlueprint, Schema
 from apiflask.fields import Integer, String, List, Nested, IP, DateTime, Dict
 from apiflask.validators import OneOf
 from requests.exceptions import Timeout
-from sqlalchemy import distinct
+from sqlalchemy import distinct, func, case
 
 from exts import db
 from model import Target
-from settings import *
-from .util import da, fake
+from .util import fake
 
 bp = APIBlueprint("目标信息及状态接口集合", __name__, url_prefix="/target")
 
@@ -387,53 +386,37 @@ def map_info(query_data):
     cou = query_data["cou"]
     isp = query_data["isp"]
 
+    query = db.session
     if ip is None:
         cou_list = []
-        # 比较和默认参数值不同的参数
-        differ = set({"proto": proto, "cou": cou, "isp": isp}.items()).difference(
-            {"proto": None, "cou": None, "isp": None}.items())
-        if differ == set():
-            # 在数据表中进行分组查询,无额外筛选
-            sql = """
-                SELECT T.COU,sum(T.c) as R,sum(T.dnsec) as DNSEC,sum(T.v6) as IPv6,sum(T.dh) as DoH,sum(T.dt) as DoT 
-                FROM
-                (SELECT COU,count(*) as c,count(DNSSEC=1 or null) as dnsec,count(IPv6=1 or null) as v6,count(DOH=1 or null) as dh,count(DOT=1 or null) as dt
-                FROM %s 
-                GROUP BY COU,DNSSEC,IPv6,DOH,DOT) as T GROUP BY T.COU;""" % (MYSQL_TAB_TARGETDATA)
-        else:
-            l = len(differ)
-            # 条件字典
-            condition = {}
-            for _ in range(l):
-                key, val = differ.pop()
-                # 协议参数在数据表中对应的字段名
-                if key == "proto":
-                    condition[{'IPv6': "IPv6", "DNSEC": "DNSSEC", "DoH": "DOH", "DoT": "DOT"}[val]] = str(True)
-                else:
-                    # 国家和isp属性的键只需调整字母为大写
-                    key = key.upper()
-                    condition[key] = "\"".join(["", str(val), ""])
-            # 在数据表中进行分组查询,无额外筛选
-            sql = """
-                SELECT T.COU,sum(T.c) as R,sum(T.dnsec) as DNSEC,sum(T.v6) as IPv6,sum(T.dh) as DoH,sum(T.dt) as DoT 
-                FROM
-                (SELECT COU,count(*) as c,count(DNSSEC=1 or null) as dnsec,count(IPv6=1 or null) as v6,count(DOH=1 or null) as dh,count(DOT=1 or null) as dt
-                FROM %s 
-                WHERE %s 
-                GROUP BY COU,DNSSEC,IPv6,DOH,DOT) as T GROUP BY T.COU;""" % (
-                MYSQL_TAB_TARGETDATA, " AND ".join(["=".join(condition.popitem()) for _ in range(l)]))
 
-        # 执行查询
-        da.conn.ping(reconnect=True)
-        da.cursor.execute(sql)
-        data = da.cursor.fetchall()
+        # 定义查询
+        data = query.query(
+            Target.cou.label('cou'),
+            func.count().label('count'),
+            func.sum(case((Target.dnssec == True, 1), else_=0)).label('dnssec_sum'),
+            func.sum(case((Target.ipv6 == True, 1), else_=0)).label('ipv6_sum'),
+            func.sum(case((Target.doh == True, 1), else_=0)).label('doh_sum'),
+            func.sum(case((Target.dot == True, 1), else_=0)).label('dot_sum')). \
+            filter(
+            or_(Target.ipv6 == True, proto != 'IPv6'),
+            or_(Target.dnssec == True, proto != 'DNSSEC'),
+            or_(Target.doh == True, proto != 'DoH'),
+            or_(Target.dot == True, proto != 'DoT'),
+            or_(Target.cou == cou, cou == None),
+            or_(Target.isp == isp, isp == None)
+        ). \
+            group_by(
+            Target.cou,
+        ).all()
+
         for d in data:
             # 单一国家的数据
             cou_data = {
-                "name": d['COU'],
-                'title': "支持各类协议的解析器数量为：{IPv6：" + str(d['IPv6']) + "，DNSSEC：" + str(
-                    d['DNSEC']) + "，DoH：" + str(d['DoH']) + "，DoT：" + str(d['DoT']) + "}",
-                "value": d['R']
+                "name": d.cou,
+                'title': "支持各类协议的解析器数量为：{IPv6：" + str(d.ipv6_sum) + "，DNSSEC：" + str(
+                    d.dnssec_sum) + "，DoH：" + str(d.doh_sum) + "，DoT：" + str(d.dot_sum) + "}",
+                "value": d.count
             }
             cou_list.append(cou_data)
 
@@ -441,17 +424,22 @@ def map_info(query_data):
         # 查询目标
     else:
         # 查询目标，根据v4、v6地址分类
-        res = da.get_data(data_type="target",
-                          search={"ADDRv4": ip} if "." in str(ip) else {"ADDRv6": ip})
+        res = query.query(Target).filter(
+            or_(Target.addrv6 == ip, ipaddress.ip_address(ip).version != 6),
+            or_(Target.addrv4 == ip, ipaddress.ip_address(ip).version != 4)).all()
         # 长度为0，不存在该ip的记录，返回404
         if len(res) == 0:
             return {"code": 404, "dataObject": {"earthAddTitle": []}}
-        # 支持协议
-        proto = []
-        for p in ["IPv6", "DNSSEC", "DOH", "DOT"]:
-            if res[0][p]:
-                proto.append(p)
-        target = [{"name": res[0]["COU"],
-                   "title": "该解析器支持：" + '、'.join(proto) + " 协议",
-                   "value": 1, }]
+
+        target = []
+        for r in res:
+            protocol = []
+            # 目标各协议支持情况
+            proto_state = {"IPv6": r.ipv6, "DNSSEC": r.dnssec, "DoH": r.doh, "DoT": r.dot}
+            for k, v in proto_state.items():
+                if bool(v) is True:
+                    protocol.append(k)
+            target.append({"name": r.cou,
+                           "title": "该解析器支持：" + '、'.join(protocol) + " 协议",
+                           "value": 1, })
         return {"code": 200, "dataObject": {"earthAddTitle": target}}
