@@ -1,7 +1,6 @@
 # 策略生成与调整，效果评估模块
 import random
 
-from settings import *
 from .util import is_ipaddress
 
 

@@ -7,7 +7,6 @@ from apiflask.fields import String, Integer, List, Nested, Boolean, DateTime, Fl
 from apiflask.validators import OneOf
 from flask import request
 
-from settings import *
 from .util import error
 
 from model import Agent,TaskLog
