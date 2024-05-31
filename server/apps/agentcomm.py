@@ -14,40 +14,15 @@ from .util import da, error
 from model import Agent,TaskLog
 from exts import db
 from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy import and_
 
 bp = APIBlueprint("代理管理接口集合", __name__, url_prefix="/agent")
-
-# 代理类型
-agent_type = ["攻击渗透", "状态感知", "参数感知"]
-
-# 代理选项参数和代理类型的映射关系
-agent_key_map = {"gjst": agent_type[0], "ztgz": agent_type[1], "csgz": agent_type[2]}
-
-# 状态选项参数和值的映射关系
-status_map = {1: True, 0: False}
-idle_map = {1: True, 0: False}
-
-# 数据库列与返回值的键对应关系
-agent_response_map = {
-    "AGENT_ID": "id",
-    "IPADDR": "ipaddr",
-    "START_TIME": "start_time",
-    "LAT": "lat",
-    "LNG": "lng",
-    "AGENT_TYPE": "atype",
-    "SYS": "sys",
-    "PORT": "port",
-    "CPU_NUM": "cpu_num",
-    "STATUS": "status",
-    "IDLE": "idle",
-    "MEM": "mem"
-}
 
 
 class AgentOutput(Schema):
     id = String()
     ipaddr = List(String())
-    atype = String(validate=OneOf(agent_type))
+    atype = String(validate=OneOf(["攻击渗透", "状态感知", "参数感知"]))
     status = Boolean()
     idle = Boolean()
     port = Integer()
@@ -202,18 +177,32 @@ def agent_info(query_data):
     agent_type = query_data["atype"]
     status = query_data["status"]
     idle = query_data["idle"]
-
-    # 代理信息列表
     agent_list = []
-    res = da.get_data(data_type="agent", search={"atype": agent_type, "status": status, "idle": idle},
-                      offset=(page - 1) * per_page, limit=per_page)
-    res_count = da.count_data(data_type="agent", search={"atype": agent_type, "status": status, "idle": idle})
-    for r in res:
-        agent = {}
-        for key, value in r.items():
-            agent[agent_response_map[key]] = value if key != "IPADDR" else str(value).split("|")
-        agent_list.append(agent)
-    return {"code": 200, "agent_data": agent_list, "total": res_count}
+    query = db.session.query(Agent)
+    if agent_type != "all":
+        query = query.filter(Agent.agent_type == agent_type)
+    if status != 2:
+        query = query.filter(Agent.status == bool(status))
+    if idle != 2:
+        query = query.filter(Agent.idle == bool(idle))
+    # 分页
+    agents = query.offset((page - 1) * per_page).limit(per_page).all()
+    # 查询总数
+    agent_count = query.count()
+    for agent in agents:
+        agent_r = {}
+        agent_r["id"] = agent.agent_id
+        agent_r["ipaddr"] = agent.ipaddr.split("|") if agent.ipaddr else []
+        agent_r["atype"] = agent.agent_type
+        agent_r["status"] = agent.status
+        agent_r["idle"] = agent.idle
+        agent_r["port"] = agent.port
+        agent_r["sys"] = agent.sys
+        agent_r["cpu_num"] = agent.cpu_num
+        agent_r["mem"] = agent.mem
+        agent_r["start_time"] = agent.start_time
+        agent_list.append(agent_r)
+    return {"code": 200, "agent_data": agent_list, "total": agent_count}
 
 
 @bp.doc("代理删除接口", "输入参数说明：</br>"
