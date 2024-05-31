@@ -227,15 +227,15 @@ def agent_info(query_data):
     "msg": String()
 })
 def del_agent(json_data):
-    sql = """DELETE FROM %s WHERE AGENT_ID = '%s'
-    """ % (MYSQL_TAB_AGENT, json_data["id"])
     try:
-        da.conn.ping(reconnect=True)
-        da.cursor.execute(sql)
-        da.conn.commit()
-        if da.cursor.rowcount == 0:
-            return {"code": 404, "msg": "该代理id未找到！！"}
-    except Exception as e:
-        error(message=str(e))
+        agent = db.session.query(Agent).get(json_data["id"])
+        if agent:
+            db.session.delete(agent)
+            db.session.commit()
+            return {"code": "200", "msg": "代理删除成功"}
+        else:
+            return {"code": "404", "msg": "该代理id未找到！"}
+    except SQLAlchemyError as e:
+        db.session.rollback()
+        error(str(e))
         return {"code": 500, "msg": str(e)}
-    return {"code": 200, "msg": "ok"}
