@@ -15,18 +15,6 @@ from .util import da, error
 
 bp = APIBlueprint("任务管理接口集合", __name__, url_prefix="/task")
 
-# 数据库列与返回值的键对应关系
-task_response_map = {
-    "TASK_ID": "id",
-    "TARGET_IP": "target",
-    "TASK_NAME": "name",
-    "AGENT_ID": "agent",
-    "TARGET_DOMAIN": "target_domain",
-    "TARGET_RR": "target_rr",
-    "POLICY": "policy",
-    "CREATE_TIME": "create_time",
-    "STATUS": "status",
-}
 
 
 class TaskSchema(Schema):
@@ -42,7 +30,7 @@ class TaskSchema(Schema):
 
 
 # 执行输出日志
-class TaskLog(Schema):
+class TaskLogSchema(Schema):
     # 输出时间
     time = DateTime()
     # 输出来源IP
@@ -301,20 +289,24 @@ def tasks_state(query_data):
     per_page = query_data["per_page"]
     page = query_data["page"]
 
-    # 任务列表
+    query = db.session.query(Task).filter().offset((page - 1) * per_page).limit(per_page)
+    tasks = query.all()
+    task_count = query.count()
+    
     task_list = []
-    res = da.get_data(data_type="task",
-                      offset=(page - 1) * per_page, limit=per_page)
-    res_count = da.count_data(data_type="task")
-    for r in res:
-        task = {}
-        for key, value in r.items():
-            try:
-                task[task_response_map[key]] = value
-            except KeyError:
-                continue
-        task_list.append(task)
-    return {"code": 200, "data": task_list, "total": res_count}
+    for task in tasks:
+        task_r = {}
+        task_r["id"] = task.task_id
+        task_r["target"] = task.target_ip
+        task_r["name"] = task.task_name
+        task_r["agent"] = task.agent_id
+        task_r["target_domain"] = task.target_domain,
+        task_r["target_rr"] = task.target_rr
+        task_r["policy"] = task.policy
+        task_r["create_time"] = task.created_time
+        task_r["status"] = task.status
+        task_list.append(task_r)
+    return {"code": 200, "data": task_list, "total": task_count}
 
 
 # 任务详情接口
@@ -357,7 +349,7 @@ def task_info(query_data):
 }, location="query")
 @bp.output({
     "code": Integer(),
-    "data": List(Nested(TaskLog())),
+    "data": List(Nested(TaskLogSchema())),
     "total": Integer()
 })
 def taskpolicy_log(query_data):
