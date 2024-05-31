@@ -1,5 +1,6 @@
 # 代理通信与注册接口
 import random
+import string
 
 import requests
 from apiflask import APIBlueprint, Schema
@@ -10,7 +11,7 @@ from flask import request
 from settings import *
 from .util import da, error
 
-from model import Agent
+from model import Agent,TaskLog
 from exts import db
 from sqlalchemy.exc import SQLAlchemyError
 
@@ -43,7 +44,7 @@ agent_response_map = {
 }
 
 
-class agent(Schema):
+class AgentOutput(Schema):
     id = String()
     ipaddr = List(String())
     atype = String(validate=OneOf(agent_type))
@@ -155,27 +156,27 @@ def deliver_task(agent_id, policy, policy_param):
 
 @bp.post("/res")
 @bp.doc("代理输出消息接收接口", hide=True)
+@bp.input({
+    "id" : String(),
+    "taskpolicy" : Integer(),
+    "level" : String(validate=OneOf(["INFO", "WARNING", "ERROR"])),
+    "info" : String()
+})
 def task_ret(json_data):
-    """
-    task_ret 代理输出信息接收
-
-    Arguments:
-        json_data -- 请求中的json内容，必须包含"id"、"taskpolicy"、"level"和"info"四个keyword
-
-    Returns:
-        "ok" -- 成功执行
-    """
-    sql = """INSERT INTO %s(CREATED_BY_AGENT,TLOG_LEVEL,TLOG_INFO,TLOG_TP)
-    VALUES('%s','%s','%s','%s')
-    """ % (MYSQL_TAB_TASK_LOG, json_data["id"], json_data["level"], json_data["info"],
-           json_data["taskpolicy"])
+    task_log = TaskLog(
+            created_by_agent = json_data["id"],
+            tlog_level = json_data["level"],
+            tlog_info = json_data["info"],
+            tlog_tp = json_data["taskpolicy"]
+    )
     try:
-        da.conn.ping(reconnect=True)
-        da.cursor.execute(sql)
-        da.conn.commit()
-        return "ok"
-    except Exception as e:
-        print(e)
+        db.session.add(task_log)
+        db.session.commit()
+        return {"code": 200, "msg": "ok"}
+    except SQLAlchemyError as e:
+        db.session.rollback()
+        error(str(e))
+        return {"code": 500, "msg": str(e)}
 
 
 @bp.get("/")
@@ -192,7 +193,7 @@ def task_ret(json_data):
 }, location="query")
 @bp.output({
     "code": Integer(),
-    "agent_data": List(Nested(agent())),
+    "agent_data": List(Nested(AgentOutput())),
     "total": Integer()
 })
 def agent_info(query_data):
