@@ -72,7 +72,7 @@ def nodeinfo():
 def registernode(proto="http", port=2525, atype="gjst", server="127.0.0.1:8888"):
     info = nodeinfo()
     info["port"] = port
-    info["atype"] = atype_map[atype]
+    info["atype"] = atype
     print(info)
     r = requests.post(proto + "://" + server + "/agent/register", json=info)
     if r.status_code != 200:
