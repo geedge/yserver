@@ -45,7 +45,7 @@ class TaskPolicy(db.Model):
     policy_param = db.Column(db.String(255))
     for_task = db.Column(db.String(255), db.ForeignKey(f'{MYSQL_TAB_TASK}.task_id'))
 
-    task_logs = db.relationship('TaskLog', backref='task_policy')
+    task_logs = db.relationship('TaskLog', backref='task_policy', cascade='all, delete-orphan')
 
 
 class TaskLog(db.Model):

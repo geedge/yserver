@@ -7,7 +7,8 @@ from apiflask.fields import String, Integer, IP, DateTime, List, Nested
 from apiflask.validators import OneOf
 
 from exts import db
-from model import TaskPolicy
+from model import TaskPolicy, Task
+from sqlalchemy.exc import SQLAlchemyError
 from .agentcomm import deliver_task
 from .policy import *
 from .util import da, error
@@ -28,7 +29,7 @@ task_response_map = {
 }
 
 
-class Task(Schema):
+class TaskSchema(Schema):
     id = String()
     target = String()
     name = String()
@@ -292,7 +293,7 @@ def ops_task(json_data):
 }, location="query")
 @bp.output({
     "code": Integer(),
-    "data": List(Nested(Task())),
+    "data": List(Nested(TaskSchema())),
     "total": Integer()
 })
 # TODO：DoH适配
@@ -408,31 +409,16 @@ def taskpolicy_log(query_data):
     "msg": String()
 })
 def del_task(json_data):
-    taskid = json_data["id"]
-    # 首先删除所有有关联的执行策略
-    policysql = """
-    DELETE
-    FROM %s
-    WHERE FOR_TASK='%s'
-    """ % (MYSQL_TAB_TASKPOLICY, taskid)
     try:
-        da.cursor.execute(policysql)
-        da.conn.commit()
-    except Exception as e:
-        error(str(e))
-        return {"code": 500, "msg": str(e)}
-    # 删除任务记录
-    sql = """
-    DELETE 
-    FROM %s 
-    WHERE TASK_ID='%s';
-    """ % (MYSQL_TAB_TASK, taskid)
-    try:
-        da.cursor.execute(sql)
-        da.conn.commit()
-        if da.cursor.rowcount == 0:
+        # 查找并删除任务
+        task = db.session.query(Task).get(json_data["id"])
+        if task:
+            db.session.delete(task)
+            db.session.commit()
+            return {"code": "200", "msg": "任务删除成功"}
+        else:
             return {"code": "404", "msg": "该任务id未找到！"}
-    except Exception as e:
+    except SQLAlchemyError as e:
+        db.session.rollback()
         error(str(e))
         return {"code": 500, "msg": str(e)}
-    return {"code": 200, "msg": "ok"}
