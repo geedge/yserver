@@ -1,6 +1,5 @@
 # 代理通信与注册接口
 import random
-import string
 
 import requests
 from apiflask import APIBlueprint, Schema
@@ -9,12 +8,11 @@ from apiflask.validators import OneOf
 from flask import request
 
 from settings import *
-from .util import da, error
+from .util import error
 
 from model import Agent,TaskLog
 from exts import db
 from sqlalchemy.exc import SQLAlchemyError
-from sqlalchemy import and_
 
 bp = APIBlueprint("代理管理接口集合", __name__, url_prefix="/agent")
 
@@ -85,7 +83,7 @@ def register_agent(json_data):
     try:
         db.session.add(agent)
         db.session.commit()
-        return {"code": 200, "msg": "ok"}
+        return {"code": 200, "msg": "ok", "id":agent.agent_id}
     except SQLAlchemyError as e:
         db.session.rollback()
         error(str(e))
@@ -98,22 +96,8 @@ def deliver_task(agent_id, policy, policy_param):
         # TODO:控制代理
         return None
     else:
-        # 查询agent_id对应代理的ip和端口信息
-        sql = """
-        SELECT IPADDR, PORT
-        FROM %s
-        WHERE AGENT_ID = '%s'
-        """ % (MYSQL_TAB_AGENT, agent_id)
-        da.conn.ping(reconnect=True)
-        da.cursor.execute(sql)
-        data = da.cursor.fetchall()
-
-        # 解析代理的ipv4地址和通信端口
-        # 如果代理有多个地址，则会以"|"分隔，详见register_agent函数
-        # 第一个永远是ipv4地址（在代理向ipv4地址的端口注册信息的前提下），详见register_agent函数
-        ip, port = str(data[0]['IPADDR']).split("|")[0], data[0]['PORT']
-
-        # 将policy和policy_param作为参数传递到对应接口
+        agent = db.session.query(Agent).get(agent_id)
+        ip, port = agent.ipaddr.split("|")[0], agent.port
         try:
             res = requests.post("http://%s:%s/script" % (ip, port), timeout=3,
                                 json={'policy': policy, 'param': policy_param})
@@ -122,11 +106,8 @@ def deliver_task(agent_id, policy, policy_param):
             error("任务分发错误，code: " + str(res.status_code) + " err: " + str(res.text))
             return res.text
         except Exception as e:
-            if RUN_DEV:
-                return None
-            else:
-                error(str(e))
-                return str(e)
+            error(str(e))
+            return str(e)
 
 
 @bp.post("/res")
