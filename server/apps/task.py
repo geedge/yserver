@@ -328,32 +328,22 @@ def tasks_state(query_data):
     "data": List(Nested(TaskState()))
 })
 def task_info(query_data):
-    taskid = query_data["taskid"]
-
-    # 任务状态列表
-    sql = """
-    SELECT tp.TP_TIME as tp_time, p.P_NAME as p_name, tp.POLICY_PARAM as tp_param,tp.TP_ID as tp_id
-    FROM %s as tp,%s as p
-    WHERE tp.POLICY=p.P_ID AND tp.FOR_TASK='%s'
-    ORDER BY TP_TIME;
-    """ % (MYSQL_TAB_TASKPOLICY, MYSQL_TAB_POLICY, taskid)
-    da.cursor.execute(sql)
-    data = da.cursor.fetchall()
+    task = db.session.query(Task).get(query_data["taskid"])
+    if task is None:
+        return {"code": 404, "data": []}
+    task_policies = task.task_policies
     task_state_list = []
-    # 判断是否不存在该任务
-    if len(data) == 0:
+    if len(task_policies) == 0:
         return {"code": 404, "data": []}
     else:
-        # 过往记录
-        for d in data:
+        for task_policy in task_policies:
             task_state_list.append({
-                "start_time": d["tp_time"],
-                "policy_name": d["p_name"],
-                "policy_param": d["tp_param"],
-                "policy_id": d["tp_id"],
+                "start_time": task_policy.tp_time,
+                "policy_name": task_policy.policy_ref.p_name,
+                "policy_param": task_policy.policy_param,
+                "policy_id": task_policy.tp_id,
                 "policy_status": "无效；原因为：超时未成功"
             })
-        # 最后一项为当前正在执行的策略
         task_state_list[-1]["policy_status"] = "评估中"
     return {"code": 200, "data": task_state_list}
 
