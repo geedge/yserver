@@ -10,6 +10,10 @@ from flask import request
 from settings import *
 from .util import da, error
 
+from model import Agent
+from exts import db
+from sqlalchemy.exc import SQLAlchemyError
+
 bp = APIBlueprint("代理管理接口集合", __name__, url_prefix="/agent")
 
 # 代理类型
@@ -89,19 +93,27 @@ class agent(Schema):
 # "ram_per": Float()
 def register_agent(json_data):
     data = dict(json_data)
-    id = "".join(random.sample('1234567890zyxwvutsrqponmlkjihgfedcba', 8))
-    # 代理所有参数
-    param = {"id": id, "ipaddr": "|".join([request.remote_addr] + [i for i in data["v6addr"]]), "lat": data["lat"],
-             "lng": data["lng"], "cpunum": data["cpu_num"], "mem": str(data["ram_size"]) + "GB" + "(" + str(
-            '{:.2f}'.format(100 * (1 - float(data["ram_per"])))) + "%" + "可用)", "sys": data["sys"], "status": True,
-             "idle": True, "port": data["port"], "atype": data["atype"], "tab": MYSQL_TAB_AGENT}
-
-    # 插入记录
-    err = insert_agent(param)
-    if not err:
-        return {"id": id}
-    else:
-        return {"code": 500, "err": err}
+    agent = Agent(
+        agent_id = "".join(random.sample('1234567890zyxwvutsrqponmlkjihgfedcba', 8)),
+        ipaddr = "|".join([request.remote_addr] + [i for i in data["v6addr"]]),
+        lat = data["lat"],
+        lng = data["lng"],
+        agent_type = data["atype"],
+        sys = data["sys"],
+        port = data["port"],
+        cpu_num = data["cpu_num"],
+        status = True,
+        mem = str(data["ram_size"]) + "GB" + "(" + str('{:.2f}'.format(100 * (1 - float(data["ram_per"])))) + "%" + "可用)",
+        idle = True
+    )
+    try:
+        db.session.add(agent)
+        db.session.commit()
+        return {"code": 200, "msg": "ok"}
+    except SQLAlchemyError as e:
+        db.session.rollback()
+        error(str(e))
+        return {"code": 500, "msg": str(e)}
 
 
 # 代理任务下发
@@ -226,39 +238,3 @@ def del_agent(json_data):
         error(message=str(e))
         return {"code": 500, "msg": str(e)}
     return {"code": 200, "msg": "ok"}
-
-
-# 代理信息存储到数据库
-def insert_agent(param: dict):
-    sql = """REPLACE INTO %(tab)s(
-            AGENT_ID,
-            IPADDR,
-            LAT,
-            LNG ,
-            AGENT_TYPE,
-            SYS ,
-            PORT ,
-            CPU_NUM ,
-            STATUS ,
-            MEM,
-            IDLE) 
-            VALUES(
-            '%(id)s',
-            '%(ipaddr)s',
-            '%(lat)s',
-            '%(lng)s',
-            '%(atype)s',
-            '%(sys)s',
-            '%(port)s',
-            '%(cpunum)s',
-            %(status)s,
-            '%(mem)s',
-            %(idle)s);""" % param
-    try:
-        da.conn.ping(reconnect=True)
-        da.cursor.execute(sql)
-        da.conn.commit()
-    except Exception as e:
-        error(message=str(e))
-        return e
-    return None
