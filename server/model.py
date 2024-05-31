@@ -33,6 +33,7 @@ class Task(db.Model):
     target_domain = db.Column(db.String(255))
     target_rtype = db.Column(db.String(255))
     target_rr = db.Column(db.String(255))
+    SCAN_AGENT_ID_LIST = db.Column(db.JSON)
 
     task_policies = db.relationship('TaskPolicy', backref='task', cascade='all, delete-orphan')
 
