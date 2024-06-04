@@ -2,15 +2,6 @@
 import requests
 from loguru import logger
 
-
-# 代理输出回传
-def agent_echo(proto, server, level, info):
-    data = {"level": level, "info": info}
-    r = requests.post(proto + "://" + server, json=data)
-    if r.status_code == 200:
-        print("ok")
-
-
 def debug(message, *args, **kwargs):
     logger.debug(message, *args, **kwargs)
 

@@ -1,7 +1,10 @@
 # 渗透、目标参数感知脚本
+import os
 import subprocess
 from concurrent.futures import ThreadPoolExecutor
-
+import threading
+import uuid
+from flask import request, jsonify
 from apiflask import APIBlueprint
 from apiflask.fields import String
 
@@ -33,7 +36,8 @@ def start_script(json_data):
 
 def process_script(command):
     # 开始执行命令，不等待其执行完毕
-    process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    process = subprocess.Popen(
+        command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     while True:
         output = process.stdout.readline().rstrip().decode('utf-8')
         if output == '' and process.poll() is not None:
@@ -46,3 +50,81 @@ def process_script(command):
     # 获取子进程的返回值
     rc = process.poll()
     return rc
+
+
+# 用于存储命令结果和控制信息的字典
+tasks = {}
+tasks_lock = threading.Lock()
+
+
+def execute_command(cmd, job_id, stop_event):
+    try:
+        proc = subprocess.Popen(cmd, 
+                                shell=True, 
+                                stdout=subprocess.PIPE,
+                                stderr=subprocess.PIPE, 
+                                universal_newlines=True,
+                                text=True, 
+                                encoding='utf-8')
+        tasks[job_id]['output'] = ''
+        while proc.poll() is None:
+            if stop_event.is_set():
+                proc.terminate()
+                output += "\nExecution terminated."
+                break
+            with tasks_lock:
+                tasks[job_id]['output'] += proc.stdout.readline()
+        proc.stdout.close()
+        proc.stderr.close()
+        if not stop_event.is_set():
+            with tasks_lock:
+                tasks[job_id]['output'] += proc.communicate()[0]
+    except subprocess.CalledProcessError as e:
+        with tasks_lock:
+            tasks[job_id]['output'] = e.output
+
+
+@bp.route('/execute', methods=['POST'])
+def execute():
+    data = request.json
+    script_path = BASE_PATH + data.get('policy')
+
+    # 检查脚本文件是否存在
+    if not os.path.isfile(script_path):
+        return jsonify({'error': f'Script file {script_path} not found'}), 404
+
+    # 根据脚本类型构建命令
+    if '.py' in script_path:
+        command = f'python {script_path} {data.get('param')}'
+    elif '.go' in script_path:
+        command = f'go run {script_path} {data.get('param')}'
+    else:
+        return jsonify({'error': 'Unsupported script type'}), 400
+
+    # 生成一个唯一的job_id
+    job_id = str(uuid.uuid4())
+    stop_event = threading.Event()
+
+    with tasks_lock:
+        tasks[job_id] = {'output': None, 'stop_event': stop_event}
+
+    # 提交任务到线程池
+    executor.submit(execute_command, command, job_id, stop_event)
+    return jsonify({'job_id': job_id}), 202
+
+
+@bp.route('/results/<job_id>', methods=['GET'])
+def get_result(job_id):
+    with tasks_lock:
+        if job_id not in tasks:
+            return jsonify({'error': 'Job ID not found or still running'}), 404
+        return jsonify({'job_id': job_id, 'output': tasks[job_id]['output']})
+
+
+@bp.route('/stop/<job_id>', methods=['POST'])
+def stop_job(job_id):
+    with tasks_lock:
+        if job_id not in tasks:
+            return jsonify({'error': 'Job ID not found'}), 404
+        tasks[job_id]['stop_event'].set()
+        return jsonify({'message': f'Job {job_id} termination initiated'}), 200
