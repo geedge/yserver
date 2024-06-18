@@ -7,16 +7,12 @@
 
 import socket
 import time
-import click
-import sys
-
 from collections import namedtuple
 from functools import partial
-from six.moves import zip_longest
-from six import print_
 from timeit import default_timer as timer
-import numpy as np
 
+from six import print_
+from six.moves import zip_longest
 
 Statistics = namedtuple('Statistics', [
     'host',
@@ -72,8 +68,6 @@ class Print(object):
             statistics_group.append(statistics)
 
         return ''.join(statistics_group)
-
-
 
     def add_statistics(self, row):
         self.rows.append(row)
@@ -132,7 +126,7 @@ class Ping(object):
         # maximum = '{0:.2f}ms'.format(max(conn_times))
         average = avg(conn_times)
         # success_rate = self._success_rate() + '%'
-        return format(average,".3f")
+        return format(average, ".3f")
 
         # self.print_.add_statistics(Statistics(
         #     self._host,
@@ -156,7 +150,7 @@ class Ping(object):
         for n in range(1, count + 1):
             s = self._create_socket(socket.AF_INET, socket.SOCK_STREAM)
             try:
-                time.sleep(1)
+                time.sleep(0.1)
                 cost_time = self.timer.cost(
                     (s.connect, s.shutdown),
                     ((self._host, self._port), None))
@@ -181,13 +175,12 @@ class Ping(object):
             finally:
                 s.close()
 
-
-    def tcping(self,count=5,family=4):
-        if family==4:
+    def tcping(self, count=5, family=4):
+        if family == 4:
             for n in range(1, count + 1):
                 s = self._create_socket(socket.AF_INET, socket.SOCK_STREAM)
                 try:
-                    time.sleep(1)
+                    time.sleep(0.1)
                     cost_time = self.timer.cost(
                         (s.connect, s.shutdown),
                         ((self._host, self._port), None))
@@ -241,12 +234,11 @@ class Ping(object):
                 finally:
                     s.close()
 
+
 def cli(host, port, count, timeout):
     ping = Ping(host, port, timeout)
     if "." in host:
-        ping.tcping(count,4)
+        ping.tcping(count, 4)
     else:
-        ping.tcping(count,6)
+        ping.tcping(count, 6)
     return ping.statistics(count)
-
-

@@ -1,11 +1,12 @@
 # 状态感知——时延测试
 import time
 
-import apps.utiltcping as utping
 import dns.nameserver
 from dns import resolver
 from flask import Blueprint, request
 from icmplib import ping
+
+import apps.utiltcping as utping
 
 bp = Blueprint("delay", __name__, url_prefix="/delay")
 
@@ -27,7 +28,7 @@ def icmpdelay():
 def tcpdelay():
     addr = request.args.get("ip")
     port = request.args.get("port", default=53)
-    tdelay = utping.cli(addr, port, 2, 2)
+    tdelay = utping.cli(addr, port, 2, 1)
     return str(tdelay)
 
 

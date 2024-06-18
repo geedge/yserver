@@ -6,16 +6,14 @@ from apiflask import APIBlueprint, Schema
 from apiflask.fields import String, Integer, IP, DateTime, List, Nested
 from apiflask.validators import OneOf
 from sqlalchemy import and_
-
-from exts import db
-from model import TaskPolicy, Task, Agent
 from sqlalchemy.exc import SQLAlchemyError
+
+from model import Task, Agent
 from .agentcomm import deliver_task
 from .policy import *
 from .util import error
 
 bp = APIBlueprint("任务管理接口集合", __name__, url_prefix="/task")
-
 
 
 class TaskSchema(Schema):
@@ -83,15 +81,15 @@ def valid_task_info(task_param: dict):
     # 期望注入记录
     "target_rr": String(),
     # 期望策略
-    "policy": String(validate=OneOf(["auto", "ddos", "sjqp"])),
+    "policy": String(validate=OneOf(["auto", "ddos", "sjqp"]), load_default="auto"),
     # 状态感知方式
-    "scan": String(validate=OneOf(["auto", "icmp", "dns", "tcp", "record"])),
+    "scan": String(validate=OneOf(["auto", "icmp", "dns", "tcp", "record"]), load_default="auto"),
     # 策略切换时限,单位分钟
-    "policy_time": Integer(),
+    "policy_time": Integer(load_default=60),
     # 任务执行时限，单位分钟
-    "run_time": Integer(),
+    "run_time": Integer(load_default=600),
     # 运行配置
-    "run_flag": String(validate=OneOf(["now", "man"]))
+    "run_flag": String(validate=OneOf(["now", "man"]), load_default="now")
 }, example={'name': "test_task", 'target': "1.2.3.4", 'agent': "8a9ces", 'target_domain': "www.google.com",
             'target_rr': "NS ns.ourattack.com",
             'policy': "auto", 'scan': "auto",
@@ -104,35 +102,35 @@ def valid_task_info(task_param: dict):
 # TODO: 需要更新接口，created_by
 def make_task(json_data):
     task = Task(
-        task_id = str(uuid.uuid1()),
-        task_name = json_data["name"],
-        agent_id = json_data["agent"],
+        task_id=str(uuid.uuid1()),
+        task_name=json_data["name"],
+        agent_id=json_data["agent"],
         # created_by = "Admin",
-        target_ip = str(json_data["target"]),
+        target_ip=str(json_data["target"]),
         # policy = json_data["policy"],
-        status = "working" if json_data["run_flag"] == "now" else "stop",
-        policy_delay = json_data["policy_time"],
-        task_delay =json_data["run_time"],
-        target_scan = json_data["scan"],
-        target_domain = json_data["target_domain"],
-        target_rtype = "",
-        target_rr = json_data["target_rr"],
+        status="working" if json_data["run_flag"] == "now" else "stop",
+        policy_delay=json_data["policy_time"],
+        task_delay=json_data["run_time"],
+        target_scan=json_data["scan"],
+        target_domain=json_data["target_domain"],
+        target_rtype="",
+        target_rr=json_data["target_rr"],
     )
     if task.policy == "sjqp":
         if task.target_rr == "" or task.target_domain == "":
             return {"code": 400, "msg": "数据欺骗缺乏目标域名或注入参数"}
-    
+
     if task.target_rr != "":
         task.target_rtype, task.target_rr = task.target_rr.split(" ")
 
     # 查找所有在线的用于状态感知的agent
-    agents = db.session.query(Agent).filter(and_(Agent.status==True, Agent.agent_type=='ztgz')).all()
+    agents = db.session.query(Agent).filter(and_(Agent.status == True, Agent.agent_type == 'ztgz')).all()
     agents = random.sample(agents, min(10, len(agents)))
     selected_nodes_info = {}
     for agent in agents:
-        selected_nodes_info[agent.agent_id] = agent.ipaddr.split("|")[0]
+        selected_nodes_info[agent.agent_id] = agent.ipaddr.split("|")[0] + ":" + str(agent.port)
     task.SCAN_AGENT_ID_LIST = json.dumps(selected_nodes_info)
-    
+
     # 插入task
     try:
         db.session.add(task)
@@ -141,7 +139,7 @@ def make_task(json_data):
         db.session.rollback()
         error(str(e))
         return {"code": 500, "msg": str(e)}
-    
+
     # 任务策略初始化
     tp_id, p_exe, p_param = init_task_policy(json_data["policy"], task.target_ip, task.task_id)
 
@@ -214,7 +212,7 @@ def tasks_state(query_data):
     query = db.session.query(Task).filter().offset((page - 1) * per_page).limit(per_page)
     tasks = query.all()
     task_count = query.count()
-    
+
     task_list = []
     for task in tasks:
         task_r = {}
