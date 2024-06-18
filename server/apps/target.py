@@ -13,8 +13,7 @@ from requests.exceptions import Timeout
 from sqlalchemy import distinct, func, case
 
 from exts import db
-from model import Target
-from .util import fake
+from model import Target, Task, Agent
 
 bp = APIBlueprint("目标信息及状态接口集合", __name__, url_prefix="/target")
 
@@ -46,12 +45,12 @@ class TargetSchema(Schema):
 
 
 class TestNode(Schema):
-    Id = Integer()
+    Id = String()
     Name = String()
     Ip = String()
-    Loc = String()
     Lat = String()
     Lng = String()
+    Loc = String()
     # Port = Integer()
 
 
@@ -89,18 +88,43 @@ class CouInfo(Schema):
 })
 def get_nodes(query_data):
     node_list = []
-    num = 10
-    for i in range(num):
-        city = fake.province()
-        geo_info = fake.local_latlng(country_code='CN')
-        node_list.append({
-            "Id": str(i),
-            "Name": "测试节点" + str(i),
-            "Ip": fake.ipv4(),
-            "Loc": city,
-            "Lat": geo_info[0],
-            "Lng": geo_info[1],
-        })
+    query_session = db.session
+    # 查询所有的isp
+    node_data = query_session.query(Task.SCAN_AGENT_ID_LIST).filter(Task.task_id == query_data['taskid']).all()
+
+    # 存在数据
+    if len(node_data) > 0:
+        # 负责该任务目标的状态感知的节点
+        nodes_info = node_data[0].SCAN_AGENT_ID_LIST
+        # 查询每一个节点的信息
+        nodes = query_session.query(Agent).filter(Agent.agent_id.in_(nodes_info.keys())).all()
+        for node in nodes:
+            node_list.append({
+                "Id": node.agent_id,
+                "Name": "编号" + str(node.agent_id),
+                "Ip": nodes_info[node.agent_id],
+                # TODO:根据经纬度调整location的值
+                "Loc": "中国",
+                "Lat": node.lat,
+                "Lng": node.lng
+            })
+    else:
+        return {"code": 500, "nodes": []}
+
+    query_session.close()
+    # 废弃代码
+    # num = 10
+    # for i in range(num):
+    #     city = fake.province()
+    #     geo_info = fake.local_latlng(country_code='CN')
+    #     node_list.append({
+    #         "Id": str(i),
+    #         "Name": "测试节点" + str(i),
+    #         "Ip": fake.ipv4(),
+    #         "Loc": city,
+    #         "Lat": geo_info[0],
+    #         "Lng": geo_info[1],
+    #     })
     return {"code": 200, "nodes": node_list}
 
 
