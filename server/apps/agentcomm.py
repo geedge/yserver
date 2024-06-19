@@ -97,7 +97,7 @@ def deliver_task(task_policy):
         res = requests.post("http://%s:%s/script/execute" % (ip, port), timeout=3,
                             json={'policy': task_policy.policy_ref.p_exe,
                                   'param': task_policy.policy_param,
-                                  'id' : task_policy.tp_id,
+                                  'id' : str(task_policy.tp_id),
                                   })
         if res.status_code == 200:
             return None
