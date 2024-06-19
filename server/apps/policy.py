@@ -34,11 +34,11 @@ def init_task_policy(ptype, target, task):
     else:
         if res.ipv6:
             proto.append("IPv6")
-        elif res.doh:
+        if res.doh:
             proto.append("DOH")
-        elif res.dot:
+        if res.dot:
             proto.append("DOT")
-        elif res.dnssec:
+        if res.dnssec:
             proto.append("DNSSEC")
 
     # 可选策略范围 policy
