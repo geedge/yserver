@@ -107,11 +107,11 @@ def deliver_task(task_policy):
         error(str(e))
         return str(e)
 
-def stop_task(agent_id):
-    agent = db.session.query(Agent).get(agent_id)
+def stop_task(task_policy):
+    agent = db.session.query(Agent).get(task_policy.task.agent_id)
     ip, port = agent.ipaddr.split("|")[0], agent.port
     try:
-        res = requests.post("http://%s:%s/script" % (ip, port), timeout=3,)
+        res = requests.post(f"http://{ip}:{port}/script/stop/{str(task_policy.tp_id)}", timeout=3)
         if res.status_code == 200:
             return None
         error("任务停止错误，code: " + str(res.status_code) + " err: " + str(res.text))

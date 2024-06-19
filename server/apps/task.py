@@ -5,7 +5,7 @@ import uuid
 from apiflask import APIBlueprint, Schema
 from apiflask.fields import String, Integer, IP, DateTime, List, Nested
 from apiflask.validators import OneOf
-from sqlalchemy import and_
+from sqlalchemy import and_, desc
 from sqlalchemy.exc import SQLAlchemyError
 
 from model import Task, Agent
@@ -180,12 +180,17 @@ def ops_task(json_data):
     task = db.session.query(Task).get(id)
     if task is None:
         return {"code": 400, "msg": "任务" + id + "不存在！！"}
+    # 获取该 Task 下最新的 TaskPolicy
+    latest_task_policy = db.session.query(TaskPolicy)\
+        .filter(TaskPolicy.for_task == task.task_id)\
+        .order_by(TaskPolicy.tp_time.desc())\
+        .first()
     # 判断操作是否是逻辑上可执行的
     if task.status in ops_state[ops]:
         if (ops=="stop" or ops == "cancel"):
-            stop_task()
+            stop_task(latest_task_policy)
         elif (ops == "start"):
-            deliver_task(task, )
+            deliver_task(latest_task_policy)
         # if err is not None:
         #     return {"code": 500, "msg": str(err)}
         task.status = ops_state_result[ops]
