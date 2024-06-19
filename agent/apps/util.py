@@ -1,5 +1,4 @@
 # 工具函数集合
-import requests
 from loguru import logger
 
 def debug(message, *args, **kwargs):

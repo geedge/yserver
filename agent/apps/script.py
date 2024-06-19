@@ -7,6 +7,8 @@ import uuid
 from flask import request, jsonify
 from apiflask import APIBlueprint
 from apiflask.fields import String
+import requests
+import yaml
 
 from .util import debug
 
@@ -14,7 +16,10 @@ bp = APIBlueprint('script', __name__, url_prefix='/script')
 # 线程池
 executor = ThreadPoolExecutor(5)
 BASE_PATH = "./apps/code/"
-
+# config
+config = {}
+with open("./config.yaml", "r") as f:
+    config = yaml.safe_load(f)
 
 @bp.post('/')
 @bp.doc("渗透任务参数接收接口", "返回任务执行状态")
@@ -58,6 +63,7 @@ tasks_lock = threading.Lock()
 
 
 def execute_command(cmd, job_id, stop_event):
+    server_url = config['server']
     try:
         proc = subprocess.Popen(cmd, 
                                 shell=True, 
@@ -67,21 +73,54 @@ def execute_command(cmd, job_id, stop_event):
                                 text=True, 
                                 encoding='utf-8')
         tasks[job_id]['output'] = ''
+        
         while proc.poll() is None:
             if stop_event.is_set():
                 proc.terminate()
-                output += "\nExecution terminated."
+                tasks[job_id]['output'] += "\nExecution terminated."
                 break
-            with tasks_lock:
-                tasks[job_id]['output'] += proc.stdout.readline()
+            
+            line = proc.stdout.readline()
+            if line:
+                with tasks_lock:
+                    tasks[job_id]['output'] += line
+                
+                # 发送每行日志到服务器
+                response = requests.post(f"http://{server_url}/agent/res", json={"id" : config['id'],
+                                                           "taskpolicy" : job_id,
+                                                           "level" : "INFO",
+                                                           "info" : line})
+                if response.status_code != 200:
+                    print(f"Failed to send log to server for job {job_id}: {response.text}")
+        
         proc.stdout.close()
         proc.stderr.close()
+        
         if not stop_event.is_set():
+            remaining_output = proc.communicate()[0]
             with tasks_lock:
-                tasks[job_id]['output'] += proc.communicate()[0]
+                tasks[job_id]['output'] += remaining_output
+            
+            # 发送剩余输出到服务器
+            if remaining_output:
+                response = requests.post(f"http://{server_url}/agent/res", json={"id" : config['id'],
+                                                           "taskpolicy" : job_id,
+                                                           "level" : "INFO",
+                                                           "info" : remaining_output})
+                if response.status_code != 200:
+                    print(f"Failed to send remaining log to server for job {job_id}: {response.text}")
+    
     except subprocess.CalledProcessError as e:
         with tasks_lock:
             tasks[job_id]['output'] = e.output
+        response = requests.post(f"http://{server_url}/agent/res", json={"id" : config['id'],
+                                                   "taskpolicy" : job_id,
+                                                   "level" : "INFO",
+                                                   "info" : e.output})
+        if response.status_code != 200:
+            print(f"Failed to send error log to server for job {job_id}: {response.text}")
+    except Exception as e:
+        print(e)
 
 
 @bp.route('/execute', methods=['POST'])
@@ -102,7 +141,7 @@ def execute():
         return jsonify({'error': 'Unsupported script type'}), 400
 
     # 生成一个唯一的job_id
-    job_id = str(uuid.uuid4())
+    job_id = data.get('id')
     stop_event = threading.Event()
 
     with tasks_lock:
@@ -110,7 +149,7 @@ def execute():
 
     # 提交任务到线程池
     executor.submit(execute_command, command, job_id, stop_event)
-    return jsonify({'job_id': job_id}), 202
+    return '202'
 
 
 @bp.route('/results/<job_id>', methods=['GET'])
