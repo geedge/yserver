@@ -90,24 +90,35 @@ def register_agent(json_data):
 
 
 # 代理任务下发
-def deliver_task(agent_id, policy, policy_param):
-    if policy == "ops":
-        # TODO:控制代理
-        return None
-    else:
-        agent = db.session.query(Agent).get(agent_id)
-        ip, port = agent.ipaddr.split("|")[0], agent.port
-        try:
-            res = requests.post("http://%s:%s/script" % (ip, port), timeout=3,
-                                json={'policy': policy, 'param': policy_param})
-            if res.status_code == 200:
-                return None
-            error("任务分发错误，code: " + str(res.status_code) + " err: " + str(res.text))
-            return res.text
-        except Exception as e:
-            error(str(e))
-            return str(e)
+def deliver_task(task_policy):
+    agent = db.session.query(Agent).get(task_policy.task.agent_id)
+    ip, port = agent.ipaddr.split("|")[0], agent.port
+    try:
+        res = requests.post("http://%s:%s/script/execute" % (ip, port), timeout=3,
+                            json={'policy': task_policy.policy_ref.p_exe,
+                                  'param': task_policy.policy_param,
+                                  'id' : task_policy.tp_id,
+                                  })
+        if res.status_code == 200:
+            return None
+        error("任务分发错误，code: " + str(res.status_code) + " err: " + str(res.text))
+        return res.text
+    except Exception as e:
+        error(str(e))
+        return str(e)
 
+def stop_task(agent_id):
+    agent = db.session.query(Agent).get(agent_id)
+    ip, port = agent.ipaddr.split("|")[0], agent.port
+    try:
+        res = requests.post("http://%s:%s/script" % (ip, port), timeout=3,)
+        if res.status_code == 200:
+            return None
+        error("任务停止错误，code: " + str(res.status_code) + " err: " + str(res.text))
+        return res.text
+    except Exception as e:
+        error(str(e))
+        return str(e)
 
 @bp.post("/res")
 @bp.doc("代理输出消息接收接口", hide=True)

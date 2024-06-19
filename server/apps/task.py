@@ -9,7 +9,7 @@ from sqlalchemy import and_
 from sqlalchemy.exc import SQLAlchemyError
 
 from model import Task, Agent
-from .agentcomm import deliver_task
+from .agentcomm import deliver_task, stop_task
 from .policy import *
 from .util import error
 
@@ -141,11 +141,11 @@ def make_task(json_data):
         return {"code": 500, "msg": str(e)}
 
     # 任务策略初始化
-    tp_id, p_exe, p_param = init_task_policy(json_data["policy"], task.target_ip, task.task_id)
+    task_policy = init_task_policy(json_data["policy"], task.target_ip, task.task_id)
 
     # 根据状态判断是否立刻执行
     if task.status == "working":
-        err = deliver_task(task.agent_id, p_exe, p_param)
+        err = deliver_task(task_policy)
         if err is not None:
             error(str(err))
             return {"code": 500, "msg": str(err)}
@@ -182,9 +182,12 @@ def ops_task(json_data):
         return {"code": 400, "msg": "任务" + id + "不存在！！"}
     # 判断操作是否是逻辑上可执行的
     if task.status in ops_state[ops]:
-        err = deliver_task(task.agent_id, "ops", ops)
-        if err is not None:
-            return {"code": 500, "msg": str(err)}
+        if (ops=="stop" or ops == "cancel"):
+            stop_task()
+        elif (ops == "start"):
+            deliver_task(task, )
+        # if err is not None:
+        #     return {"code": 500, "msg": str(err)}
         task.status = ops_state_result[ops]
         db.session.commit()
         return {"code": 200, "msg": "任务" + task.task_id + "已" + ops_cn}

@@ -63,4 +63,4 @@ def init_task_policy(ptype, target, task):
     db.session.add(task_policy)
     db.session.commit()
 
-    return task_policy.tp_id, p_exe, p_param
+    return task_policy
