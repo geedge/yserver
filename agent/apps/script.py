@@ -18,8 +18,7 @@ executor = ThreadPoolExecutor(5)
 BASE_PATH = "./apps/code/"
 # config
 config = {}
-with open("./config.yaml", "r") as f:
-    config = yaml.safe_load(f)
+
 
 @bp.post('/')
 @bp.doc("渗透任务参数接收接口", "返回任务执行状态")
@@ -63,6 +62,8 @@ tasks_lock = threading.Lock()
 
 
 def execute_command(cmd, job_id, stop_event):
+    with open("./config.yaml", "r") as f:
+        config = yaml.safe_load(f)
     server_url = config['server']
     try:
         proc = subprocess.Popen(cmd, 
