@@ -135,9 +135,9 @@ def execute():
 
     # 根据脚本类型构建命令
     if '.py' in script_path:
-        command = f'python -u {script_path} {data.get('param')}'
+        command = f"python -u {script_path} {data.get('param')}"
     elif '.go' in script_path:
-        command = f'go run {script_path} {data.get('param')}'
+        command = f"go run {script_path} {data.get('param')}"
     else:
         return jsonify({'error': 'Unsupported script type'}), 400
 
