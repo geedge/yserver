@@ -2,11 +2,12 @@ from exts import db
 from settings import *
 import json
 import datetime
+from flask_login import UserMixin
+from werkzeug.security import generate_password_hash, check_password_hash
 
-
-class User(db.Model):
+class User(db.Model, UserMixin):
     __tablename__ = MYSQL_TAB_USER
-    user_id = db.Column(db.String(255), primary_key=True, nullable=False)
+    user_id = db.Column(db.String(255), primary_key=True, nullable=False, )
     user_name = db.Column(db.String(255))
     created_by = db.Column(db.String(255))
     created_time = db.Column(db.TIMESTAMP, server_default=db.func.now())
@@ -15,6 +16,15 @@ class User(db.Model):
 
     syslogs = db.relationship('Syslog', backref='user')
     tasks = db.relationship('Task', backref='user')
+    
+    def get_id(self):
+        return (self.user_id)
+
+    def set_password(self, password):
+        self.user_pwd_hash = generate_password_hash(password)
+
+    def check_password(self, password):
+        return check_password_hash(self.user_pwd_hash, password)
 
 
 class Task(db.Model):
