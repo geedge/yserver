@@ -25,7 +25,7 @@ def load_user(user_id):
     "code": Integer(),
     "message": String()
 })
-@login_required
+# @login_required
 def register(json_data):
     data = json_data
     username = data.get('username')
@@ -39,8 +39,8 @@ def register(json_data):
     user = User(
         user_id=str(uuid4()),
         user_name=data["username"],
-        # created_by='Root',
-        created_by=current_user.user_name,
+        created_by='Root',
+        # created_by=current_user.user_name,
         user_group='Normal'
     )
     user.set_password(password)
