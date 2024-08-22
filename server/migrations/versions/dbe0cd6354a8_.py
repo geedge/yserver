@@ -1,8 +1,8 @@
 """empty message
 
-Revision ID: 9f2b08dd6e85
+Revision ID: dbe0cd6354a8
 Revises: 
-Create Date: 2024-06-23 15:22:04.047758
+Create Date: 2024-08-22 15:28:40.554807
 
 """
 from alembic import op
@@ -10,7 +10,7 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision = '9f2b08dd6e85'
+revision = 'dbe0cd6354a8'
 down_revision = None
 branch_labels = None
 depends_on = None
@@ -21,7 +21,7 @@ def upgrade():
     op.create_table('AGENT',
     sa.Column('agent_id', sa.String(length=255), nullable=False),
     sa.Column('ipaddr', sa.String(length=255), nullable=True),
-    sa.Column('start_time', sa.DateTime(), server_default=sa.text('(CURRENT_TIMESTAMP)'), nullable=True),
+    sa.Column('start_time', sa.DateTime(), server_default=sa.text('now()'), nullable=True),
     sa.Column('lat', sa.String(length=255), nullable=True),
     sa.Column('lng', sa.String(length=255), nullable=True),
     sa.Column('agent_type', sa.String(length=255), nullable=True),
@@ -55,7 +55,7 @@ def upgrade():
     sa.Column('isp', sa.String(length=255), nullable=True),
     sa.Column('lat', sa.String(length=255), nullable=True),
     sa.Column('lng', sa.String(length=255), nullable=True),
-    sa.Column('updated_time', sa.DateTime(), server_default=sa.text('(CURRENT_TIMESTAMP)'), nullable=True),
+    sa.Column('updated_time', sa.DateTime(), server_default=sa.text('now()'), nullable=True),
     sa.Column('protect', sa.String(length=255), nullable=True),
     sa.Column('doh_domain', sa.String(length=255), nullable=True),
     sa.PrimaryKeyConstraint('target_id')
@@ -64,7 +64,7 @@ def upgrade():
     sa.Column('user_id', sa.String(length=255), nullable=False),
     sa.Column('user_name', sa.String(length=255), nullable=True),
     sa.Column('created_by', sa.String(length=255), nullable=True),
-    sa.Column('created_time', sa.TIMESTAMP(), server_default=sa.text('(CURRENT_TIMESTAMP)'), nullable=True),
+    sa.Column('created_time', sa.TIMESTAMP(), server_default=sa.text('now()'), nullable=True),
     sa.Column('user_pwd_hash', sa.String(length=255), nullable=True),
     sa.Column('user_group', sa.String(length=255), nullable=True),
     sa.PrimaryKeyConstraint('user_id')
@@ -73,7 +73,7 @@ def upgrade():
     sa.Column('log_id', sa.Integer(), autoincrement=True, nullable=False),
     sa.Column('log_level', sa.String(length=255), nullable=True),
     sa.Column('log_info', sa.String(length=255), nullable=True),
-    sa.Column('log_time', sa.DateTime(), server_default=sa.text('(CURRENT_TIMESTAMP)'), nullable=True),
+    sa.Column('log_time', sa.DateTime(), server_default=sa.text('now()'), nullable=True),
     sa.Column('s_ip', sa.String(length=255), nullable=True),
     sa.Column('user_id', sa.String(length=255), nullable=True),
     sa.ForeignKeyConstraint(['user_id'], ['USER.user_id'], ),
@@ -85,7 +85,7 @@ def upgrade():
     sa.Column('agent_id', sa.String(length=255), nullable=True),
     sa.Column('created_by', sa.String(length=255), nullable=True),
     sa.Column('target_ip', sa.String(length=255), nullable=True),
-    sa.Column('created_time', sa.DateTime(), server_default=sa.text('(CURRENT_TIMESTAMP)'), nullable=True),
+    sa.Column('created_time', sa.DateTime(), server_default=sa.text('now()'), nullable=True),
     sa.Column('policy', sa.Integer(), nullable=True),
     sa.Column('status', sa.String(length=255), nullable=True),
     sa.Column('policy_delay', sa.String(length=255), nullable=True),
@@ -101,7 +101,7 @@ def upgrade():
     )
     op.create_table('TASK_POLICY',
     sa.Column('tp_id', sa.Integer(), autoincrement=True, nullable=False),
-    sa.Column('tp_time', sa.DateTime(), server_default=sa.text('(CURRENT_TIMESTAMP)'), nullable=True),
+    sa.Column('tp_time', sa.DateTime(), server_default=sa.text('now()'), nullable=True),
     sa.Column('policy', sa.String(length=255), nullable=True),
     sa.Column('policy_param', sa.String(length=255), nullable=True),
     sa.Column('for_task', sa.String(length=255), nullable=True),
@@ -112,7 +112,7 @@ def upgrade():
     op.create_table('TASK_LOG',
     sa.Column('tlog_id', sa.Integer(), autoincrement=True, nullable=False),
     sa.Column('created_by_agent', sa.String(length=255), nullable=True),
-    sa.Column('created_time', sa.DateTime(), server_default=sa.text('(CURRENT_TIMESTAMP)'), nullable=True),
+    sa.Column('created_time', sa.DateTime(), server_default=sa.text('now()'), nullable=True),
     sa.Column('tlog_level', sa.String(length=255), nullable=True),
     sa.Column('tlog_info', sa.String(length=255), nullable=True),
     sa.Column('tlog_tp', sa.Integer(), nullable=True),
