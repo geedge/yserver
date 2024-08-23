@@ -65,7 +65,7 @@ class TaskLog(db.Model):
     created_by_agent = db.Column(db.String(255), db.ForeignKey(f'{MYSQL_TAB_AGENT}.agent_id'))
     created_time = db.Column(db.DateTime, server_default=db.func.now())
     tlog_level = db.Column(db.String(255))
-    tlog_info = db.Column(db.String(255))
+    tlog_info = db.Column(db.Text)
     tlog_tp = db.Column(db.Integer, db.ForeignKey(f'{MYSQL_TAB_TASKPOLICY}.tp_id'))
 
 
@@ -97,7 +97,7 @@ class Policy(db.Model):
     p_name = db.Column(db.String(255))
     p_proto = db.Column(db.String(255))
 
-    task_policies = db.relationship('TaskPolicy', backref='policy_ref')
+    task_policies = db.relationship('TaskPolicy', backref='Policy')
     
 
 class Syslog(db.Model):

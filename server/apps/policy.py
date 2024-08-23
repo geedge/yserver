@@ -1,35 +1,32 @@
 # 策略生成与调整，效果评估模块
 import random
-
+import ipaddress
 from .util import is_ipaddress
 
 
 from exts import db
 from model import Policy, Target, TaskPolicy
 
-# 初始策略创建,输入参数为期望策略类型、目标（IP或域名）以及任务编号
-def init_task_policy(ptype, target, task):
-    ip_version = is_ipaddress(target)
-    # 非ip地址，默认为DoH域名
-    if ip_version is None:
+# 初始策略创建, 输入参数为期望策略类型、目标（IP或域名）以及任务编号
+def init_task_policy(task, ptype):
+    if task.target_domain is not None:
+        res = None
         # TODO:DoH处理
         pass
-    # IPv4
-    elif ip_version == 4:
-        res = db.session.query(Target).filter(Target.addrv4==target).first()
-    # IPv6
-    elif ip_version == 6:
-        res = db.session.query(Target).filter(Target.addrv6==target).first()
-    else:
-        exit(1)
+    elif task.target_ip is not None:
+        ip_version = is_ipaddress(task.target_ip)
+        if ip_version == 4 :
+            res = db.session.query(Target).filter(Target.addrv4==task.target_ip).first()
+        elif ip_version == 6:
+            res = db.session.query(Target).filter(Target.addrv6==task.target_ip).first()
 
     # 目标支持协议范围
     proto = []
 
     # 不存在该目标的相关记录
     if not res:
-        # TODO:后续对该目标进行探测，以下为fake
-        proto = ["IPv6", "DOH", "DOT", "DNSSEC"]
+        # TODO:目标不存在时, 探测目标（fake）
+        proto = ["IPv6"]
     # 存在该目标的记录
     else:
         if res.ipv6:
@@ -45,18 +42,18 @@ def init_task_policy(ptype, target, task):
     # 根据用户期望手段与目标协议寻找初始化策略
     # auto自动包含两类策略，否则仅支持用户选定的策略类型
     policy = ["ddos", "sjqp"] if ptype == "auto" else [ptype]
-    
-    # 随机选择一个作为初始策略
+
+    # TODO 随机选择一个作为初始策略(策略选择)
     policy_list = db.session.query(Policy).filter(Policy.p_type.in_(policy), Policy.p_proto.in_(proto)).all()
     first_policy = random.choice(policy_list)
-    # 策略对应的执行文件路径和初始参数
-    p_exe = first_policy.p_exe
-    p_param = first_policy.p_payload
+    
+    # TODO 编写参数（可能要根据不同的Policy做适配！！！！）
+    p_param = task.target_domain
 
     task_policy = TaskPolicy(
         policy = first_policy.p_id,
         policy_param = p_param,
-        for_task = task
+        for_task = task.task_id
     )
 
     # 记录该任务策略

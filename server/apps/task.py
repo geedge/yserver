@@ -73,13 +73,13 @@ def valid_task_info(task_param: dict):
     # 任务名称
     "name": String(),
     # 目标IP
-    "target": IP(),
+    "target": IP(required=False),
     # 执行代理
     "agent": String(),
     # 目标域名
-    "target_domain": String(),
+    "target_domain": String(required=False),
     # 期望注入记录
-    "target_rr": String(),
+    "target_rr": String(required=False),
     # 期望策略
     "policy": String(validate=OneOf(["auto", "ddos", "sjqp"]), load_default="auto"),
     # 状态感知方式
@@ -103,24 +103,24 @@ def valid_task_info(task_param: dict):
 def make_task(json_data):
     task = Task(
         task_id=str(uuid.uuid1()),
-        task_name=json_data["name"],
-        agent_id=json_data["agent"],
+        task_name=json_data.get("name"),
+        agent_id=json_data.get("agent"),
         # created_by = "Admin",
-        target_ip=str(json_data["target"]),
-        # policy = json_data["policy"],
-        status="working" if json_data["run_flag"] == "now" else "stop",
-        policy_delay=json_data["policy_time"],
-        task_delay=json_data["run_time"],
-        target_scan=json_data["scan"],
-        target_domain=json_data["target_domain"],
+        target_ip=str(json_data.get("target")),
+        # policy = json_data.get("policy"),
+        status="working" if json_data.get("run_flag") == "now" else "stop",
+        policy_delay=json_data.get("policy_time"),
+        task_delay=json_data.get("run_time"),
+        target_scan=json_data.get("scan"),
+        target_domain=json_data.get("target_domain"),
         target_rtype="",
-        target_rr=json_data["target_rr"],
+        target_rr=json_data.get("target_rr")
     )
     if task.policy == "sjqp":
         if task.target_rr == "" or task.target_domain == "":
             return {"code": 400, "msg": "数据欺骗缺乏目标域名或注入参数"}
 
-    if task.target_rr != "":
+    if task.target_rr is not None:
         task.target_rtype, task.target_rr = task.target_rr.split(" ")
 
     # 查找所有在线的用于状态感知的agent
@@ -141,7 +141,7 @@ def make_task(json_data):
         return {"code": 500, "msg": str(e)}
 
     # 任务策略初始化
-    task_policy = init_task_policy(json_data["policy"], task.target_ip, task.task_id)
+    task_policy = init_task_policy(task, json_data["policy"])
 
     # 根据状态判断是否立刻执行
     if task.status == "working":
@@ -259,7 +259,7 @@ def task_info(query_data):
         for task_policy in task_policies:
             task_state_list.append({
                 "start_time": task_policy.tp_time,
-                "policy_name": task_policy.policy_ref.p_name,
+                "policy_name": task_policy.Policy.p_name,
                 "policy_param": task_policy.policy_param,
                 "policy_id": task_policy.tp_id,
                 "policy_status": "无效；原因为：超时未成功"

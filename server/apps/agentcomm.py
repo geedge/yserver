@@ -1,7 +1,8 @@
 # 代理通信与注册接口
 import random
-
+import re
 import requests
+
 from apiflask import APIBlueprint, Schema
 from apiflask.fields import String, Integer, List, Nested, Boolean, DateTime, Float
 from apiflask.validators import OneOf
@@ -9,7 +10,7 @@ from flask import request
 
 from .util import error
 
-from model import Agent,TaskLog
+from model import Agent, TaskLog, Policy
 from exts import db
 from sqlalchemy.exc import SQLAlchemyError
 
@@ -93,10 +94,15 @@ def register_agent(json_data):
 def deliver_task(task_policy):
     agent = db.session.query(Agent).get(task_policy.task.agent_id)
     ip, port = agent.ipaddr.split("|")[0], agent.port
+    payload = task_policy.Policy.p_payload
+    # 使得param应该未以空格分隔的多个参数
+    param = task_policy.policy_param.split(' ')
+    # 使用正则表达式逐个替换策略中的<***>（还未填充的内容）
+    param = re.sub(r'<[^>]*>', lambda _: param.pop(0), payload)
     try:
         res = requests.post("http://%s:%s/script/execute" % (ip, port), timeout=3,
-                            json={'policy': task_policy.policy_ref.p_exe,
-                                  'param': task_policy.policy_param,
+                            json={'policy': task_policy.Policy.p_exe,
+                                  'param': param,
                                   'id' : str(task_policy.tp_id),
                                   })
         if res.status_code == 200:

@@ -3,6 +3,7 @@ import os
 import subprocess
 from concurrent.futures import ThreadPoolExecutor
 import threading
+import time
 import uuid
 from flask import request, jsonify
 from apiflask import APIBlueprint
@@ -69,7 +70,7 @@ def execute_command(cmd, job_id, stop_event):
         proc = subprocess.Popen(cmd, 
                                 shell=True, 
                                 stdout=subprocess.PIPE,
-                                stderr=subprocess.PIPE, 
+                                stderr=subprocess.STDOUT, 
                                 universal_newlines=True,
                                 text=True, 
                                 encoding='utf-8')
@@ -82,20 +83,21 @@ def execute_command(cmd, job_id, stop_event):
                 break
             
             line = proc.stdout.readline()
+            print(line)
             if line:
                 with tasks_lock:
                     tasks[job_id]['output'] += line
-                
                 # 发送每行日志到服务器
-                response = requests.post(f"http://{server_url}/agent/res", json={"id" : config['id'],
-                                                           "taskpolicy" : job_id,
-                                                           "level" : "INFO",
-                                                           "info" : line})
+                response = requests.post(f"http://{server_url}/agent/res", 
+                                         json={"id" : config['id'],
+                                                "taskpolicy" : job_id,
+                                                "level" : "INFO",
+                                                "info" : line})
+                time.sleep(1)
                 if response.status_code != 200:
                     print(f"Failed to send log to server for job {job_id}: {response.text}")
         
-        proc.stdout.close()
-        proc.stderr.close()
+        # proc.stdout.close()
         
         if not stop_event.is_set():
             remaining_output = proc.communicate()[0]
@@ -139,7 +141,7 @@ def execute():
     elif '.go' in script_path:
         command = f"go run {script_path} {data.get('param')}"
     else:
-        return jsonify({'error': 'Unsupported script type'}), 400
+        command = f"{script_path} {data.get('param')}"
 
     # 生成一个唯一的job_id
     job_id = data.get('id')
