@@ -25,7 +25,7 @@ class TaskSchema(Schema):
     target_rr = String()
     policy = String()
     create_time = DateTime()
-    status = String(validate=OneOf(["working", "stop", "finish"]))
+    status = String(validate=OneOf(["working", "stopped", "finished"]))
 
 
 # 执行输出日志
@@ -53,7 +53,10 @@ class TaskState(Schema):
     # 执行策略编号
     policy_id = String()
     # 效果评估
-    policy_status = String()
+    evaluate_status = String()
+    # 当前状态
+    task_status = String()
+    
 
 
 # 任务创建参数逻辑合法性检查
@@ -152,52 +155,51 @@ def make_task(json_data):
     return {"code": 200, "msg": "ok"}
 
 
-opsmap = {"start": "开始", "stop": "暂停", "cancel": "停止"}
-statemap = {"working": "执行中", "stop": "暂停", "finish": "结束"}
-# 合法逻辑映射，例如不能让一个暂停的任务开始，或是让一个正在运行的任务停止
-ops_state = {"start": ["stop"], "stop": ["working"], "cancel": ["working", "stop"]}
-# 操作与状态结果的映射关系
-ops_state_result = {"start": "working", "stop": "stop", "cancel": "finish"}
+operation_map = {"start": "开始", "stop": "暂停"}
+status_map = {"working": "执行中", "stopped": "暂停"}
+# 合法的状态转移逻辑，例如，暂停的任务不能开始，正在执行的任务不能停止
+valid_transitions = {"start": ["stopped"], "stop": ["working"]}
+# 操作与状态变更结果的映射关系
+operation_result_map = {"start": "working", "stop": "stopped"}
 
-
-# 操作任务开始停止控制接口
+# 操作任务开始和停止控制接口
 @bp.post("/ops")
 @bp.doc("任务操作接口")
 @bp.input({
     "taskid": String(required=True),
-    "ops": String(required=True, validate=OneOf(["start", "stop", "cancel"]))
+    "ops": String(required=True, validate=OneOf(["start", "stop"]))
 })
 @bp.output({
     "code": Integer(),
     "msg": String(),
 })
-def ops_task(json_data):
-    ops = json_data["ops"]
-    # 操作中文名
-    ops_cn = opsmap[json_data["ops"]]
-    id = json_data["taskid"]
+def handle_task_operation(json_data):
+    operation = json_data["ops"]
+    task_id = json_data["taskid"]
 
-    task = db.session.query(Task).get(id)
-    if task is None:
-        return {"code": 400, "msg": "任务" + id + "不存在！！"}
-    # 获取该 Task 下最新的 TaskPolicy
+    task = db.session.query(Task).get(task_id)
+    if not task:
+        return {"code": 400, "msg": f"任务 {task_id} 不存在！"}
+    
     latest_task_policy = db.session.query(TaskPolicy)\
-        .filter(TaskPolicy.for_task == task.task_id)\
+        .filter_by(for_task=task.task_id)\
         .order_by(TaskPolicy.tp_time.desc())\
         .first()
-    # 判断操作是否是逻辑上可执行的
-    if task.status in ops_state[ops]:
-        if (ops=="stop" or ops == "cancel"):
-            stop_task(latest_task_policy)
-        elif (ops == "start"):
-            deliver_task(latest_task_policy)
-        # if err is not None:
-        #     return {"code": 500, "msg": str(err)}
-        task.status = ops_state_result[ops]
-        db.session.commit()
-        return {"code": 200, "msg": "任务" + task.task_id + "已" + ops_cn}
-    else:
-        return {"code": 400, "msg": "无法对一个" + statemap[task.status] + "的任务执行" + ops_cn + "操作"}
+
+    if task.status not in valid_transitions.get(operation, []):
+        return {"code": 400, "msg": f"无法对一个 {status_map[task.status]} 的任务执行 {operation_map[operation]} 操作"}
+    
+    if operation == "start":
+        deliver_task(latest_task_policy)
+    else:  # operation is "stop"
+        stop_task(latest_task_policy)
+
+    task.status = operation_result_map[operation]
+    db.session.commit()
+    
+    return {"code": 200, "msg": f"任务 {task.task_id} 已 {operation_map[operation]}"}
+
+
 
 
 # 查询任务列表接口
@@ -262,9 +264,14 @@ def task_info(query_data):
                 "policy_name": task_policy.Policy.p_name,
                 "policy_param": task_policy.policy_param,
                 "policy_id": task_policy.tp_id,
-                "policy_status": "无效；原因为：超时未成功"
+                "evaluate_status": "不成功",
+                "task_status": "stopped"
             })
-        task_state_list[-1]["policy_status"] = "评估中"
+        task_state_list[-1]["task_status"] = task.status
+        if task.status == "stopped":
+            task_state_list[-1]["task_status"] = "《《《时延》》》"
+        elif task.status == "working":
+            task_state_list[-1]["task_status"] = "任务进行中"
     return {"code": 200, "data": task_state_list}
 
 
