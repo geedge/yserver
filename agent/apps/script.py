@@ -4,7 +4,6 @@ import subprocess
 from concurrent.futures import ThreadPoolExecutor
 import threading
 import time
-import uuid
 from flask import request, jsonify
 from apiflask import APIBlueprint
 from apiflask.fields import String
@@ -112,13 +111,16 @@ def execute_command(cmd, job_id, stop_event):
                                                            "info" : remaining_output})
                 if response.status_code != 200:
                     print(f"Failed to send remaining log to server for job {job_id}: {response.text}")
-    
+        response = requests.post(f"http://{server_url}/agent/res", json={"id" : config['id'],
+                                                "taskpolicy" : job_id,
+                                                "level" : "INFO",
+                                                "info" : "finish"})
     except subprocess.CalledProcessError as e:
         with tasks_lock:
             tasks[job_id]['output'] = e.output
         response = requests.post(f"http://{server_url}/agent/res", json={"id" : config['id'],
                                                    "taskpolicy" : job_id,
-                                                   "level" : "INFO",
+                                                   "level" : "ERROR",
                                                    "info" : e.output})
         if response.status_code != 200:
             print(f"Failed to send error log to server for job {job_id}: {response.text}")
