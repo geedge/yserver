@@ -10,7 +10,7 @@ from flask import request
 
 from .util import error
 
-from model import Agent, TaskLog, Policy
+from model import Agent, TaskLog, Policy, TaskPolicy
 from exts import db
 from sqlalchemy.exc import SQLAlchemyError
 
@@ -106,6 +106,7 @@ def deliver_task(task_policy):
                                   'id' : str(task_policy.tp_id),
                                   })
         if res.status_code == 200:
+            task_policy.task.status = "working"
             return None
         error("任务分发错误，code: " + str(res.status_code) + " err: " + str(res.text))
         return res.text
@@ -119,6 +120,7 @@ def stop_task(task_policy):
     try:
         res = requests.post(f"http://{ip}:{port}/script/stop/{str(task_policy.tp_id)}", timeout=3)
         if res.status_code == 200:
+            task_policy.task.status = "stopped"
             return None
         error("任务停止错误，code: " + str(res.status_code) + " err: " + str(res.text))
         return res.text
@@ -135,6 +137,11 @@ def stop_task(task_policy):
     "info" : String()
 })
 def task_ret(json_data):
+    if json_data["info"] == "finish":
+        task_policy = db.session.query(TaskPolicy).get(json_data["taskpolicy"])
+        task_policy.task.status = "stopped"
+        db.session.commit()
+        return {"code": 200, "msg": "ok"}
     task_log = TaskLog(
             created_by_agent = json_data["id"],
             tlog_level = json_data["level"],
