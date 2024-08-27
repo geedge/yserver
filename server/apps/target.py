@@ -114,19 +114,6 @@ def get_nodes(query_data):
         query_session.close()
         return {"code": 500, "nodes": []}
 
-    # 废弃代码
-    # num = 10
-    # for i in range(num):
-    #     city = fake.province()
-    #     geo_info = fake.local_latlng(country_code='CN')
-    #     node_list.append({
-    #         "Id": str(i),
-    #         "Name": "测试节点" + str(i),
-    #         "Ip": fake.ipv4(),
-    #         "Loc": city,
-    #         "Lat": geo_info[0],
-    #         "Lng": geo_info[1],
-    #     })
     return {"code": 200, "nodes": node_list}
 
 
@@ -171,10 +158,6 @@ def get_pernode_delay(query_data):
         query_session.close()
         return {"code": 500, "delay_data": []}
 
-    # 暂未部署实际代理节点，以假数据返回
-    # ans = []
-    # for i in range(10):
-    #     ans.append({"Id": str(i), "Type": scan_type, "CurrDelay": random.randint(1, 1000)})
     return {"code": 200, 'delay_data': ans}
 
 
