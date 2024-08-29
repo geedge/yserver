@@ -55,7 +55,7 @@ class TaskState(Schema):
     # 效果评估
     evaluate_status = String()
     # 当前状态
-    task_status = String()
+    policy_status = String()
     
 
 
@@ -264,14 +264,15 @@ def task_info(query_data):
                 "policy_name": task_policy.Policy.p_name,
                 "policy_param": task_policy.policy_param,
                 "policy_id": task_policy.tp_id,
-                "evaluate_status": "不成功",
-                "task_status": "stopped"
+                "evaluate_status": "stopped",
+                "policy_status": "任务已结束"
             })
-        task_state_list[-1]["task_status"] = task.status
+        task_state_list[-1]["evaluate_status"] = task.status
         if task.status == "stopped":
-            task_state_list[-1]["task_status"] = "《《《时延》》》"
+            # TODO
+            task_state_list[-1]["policy_status"] = "《《《时延》》》"
         elif task.status == "working":
-            task_state_list[-1]["task_status"] = "任务进行中"
+            task_state_list[-1]["policy_status"] = "任务进行中"
     return {"code": 200, "data": task_state_list}
 
 
