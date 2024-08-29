@@ -7,8 +7,7 @@ from .util import is_ipaddress
 from exts import db
 from model import Policy, Target, TaskPolicy
 
-# 初始策略创建, 输入参数为期望策略类型、目标（IP或域名）以及任务编号
-def init_task_policy(task, ptype):
+def chiose_policy(task):
     if task.target_domain is not None:
         res = None
         # TODO:DoH处理
@@ -41,10 +40,15 @@ def init_task_policy(task, ptype):
     # 可选策略范围 policy
     # 根据用户期望手段与目标协议寻找初始化策略
     # auto自动包含两类策略，否则仅支持用户选定的策略类型
-    policy = ["ddos", "sjqp"] if ptype == "auto" else [ptype]
+    policy = ["ddos", "sjqp"] if task.ptype == "auto" else [task.ptype]
 
     # TODO 随机选择一个作为初始策略(策略选择)
     policy_list = db.session.query(Policy).filter(Policy.p_type.in_(policy), Policy.p_proto.in_(proto)).all()
+    return policy_list
+
+# 初始task_policy创建
+def init_task_policy(task):
+    policy_list = chiose_policy(task)
     first_policy = random.choice(policy_list)
     
     # TODO 编写参数（可能要根据不同的Policy做适配！！！！）
@@ -52,6 +56,24 @@ def init_task_policy(task, ptype):
 
     task_policy = TaskPolicy(
         policy = first_policy.p_id,
+        policy_param = p_param,
+        for_task = task.task_id
+    )
+
+    # 记录该任务策略
+    db.session.add(task_policy)
+    db.session.commit()
+
+    return task_policy
+
+def copy_task_policy(task):
+
+    last_policy = task.task_policies[-1].Policy
+    # TODO 编写参数（可能要根据不同的Policy做适配！！！！）
+    p_param = task.target_domain
+
+    task_policy = TaskPolicy(
+        policy = last_policy.p_id,
         policy_param = p_param,
         for_task = task.task_id
     )

@@ -110,7 +110,7 @@ def make_task(json_data):
         agent_id=json_data.get("agent"),
         # created_by = "Admin",
         target_ip=str(json_data.get("target")),
-        # policy = json_data.get("policy"),
+        ptype = json_data["policy"],
         status="working" if json_data.get("run_flag") == "now" else "stop",
         policy_delay=json_data.get("policy_time"),
         task_delay=json_data.get("run_time"),
@@ -119,7 +119,7 @@ def make_task(json_data):
         target_rtype="",
         target_rr=json_data.get("target_rr")
     )
-    if task.policy == "sjqp":
+    if task.ptype == "sjqp":
         if task.target_rr == "" or task.target_domain == "":
             return {"code": 400, "msg": "数据欺骗缺乏目标域名或注入参数"}
 
@@ -144,7 +144,7 @@ def make_task(json_data):
         return {"code": 500, "msg": str(e)}
 
     # 任务策略初始化
-    task_policy = init_task_policy(task, json_data["policy"])
+    task_policy = init_task_policy(task)
 
     # 根据状态判断是否立刻执行
     if task.status == "working":
@@ -181,17 +181,17 @@ def handle_task_operation(json_data):
     if not task:
         return {"code": 400, "msg": f"任务 {task_id} 不存在！"}
     
-    latest_task_policy = db.session.query(TaskPolicy)\
-        .filter_by(for_task=task.task_id)\
-        .order_by(TaskPolicy.tp_time.desc())\
-        .first()
 
     if task.status not in valid_transitions.get(operation, []):
         return {"code": 400, "msg": f"无法对一个 {status_map[task.status]} 的任务执行 {operation_map[operation]} 操作"}
     
     if operation == "start":
-        deliver_task(latest_task_policy)
+        deliver_task(copy_task_policy(task))
     else:  # operation is "stop"
+        latest_task_policy = db.session.query(TaskPolicy)\
+            .filter_by(for_task=task.task_id)\
+            .order_by(TaskPolicy.tp_time.desc())\
+            .first()
         stop_task(latest_task_policy)
 
     task.status = operation_result_map[operation]
@@ -232,7 +232,7 @@ def tasks_state(query_data):
         task_r["agent"] = task.agent_id
         task_r["target_domain"] = task.target_domain,
         task_r["target_rr"] = task.target_rr
-        task_r["policy"] = task.policy
+        task_r["policy"] = task.ptype
         task_r["create_time"] = task.created_time
         task_r["status"] = task.status
         task_list.append(task_r)
@@ -264,15 +264,15 @@ def task_info(query_data):
                 "policy_name": task_policy.Policy.p_name,
                 "policy_param": task_policy.policy_param,
                 "policy_id": task_policy.tp_id,
-                "evaluate_status": "stopped",
-                "policy_status": "任务已结束"
+                "policy_status": "stopped",
+                "evaluate_status": "任务已结束"
             })
-        task_state_list[-1]["evaluate_status"] = task.status
+        task_state_list[-1]["policy_status"] = task.status
         if task.status == "stopped":
             # TODO
-            task_state_list[-1]["policy_status"] = "《《《时延》》》"
+            task_state_list[-1]["evaluate_status"] = "《《《时延》》》"
         elif task.status == "working":
-            task_state_list[-1]["policy_status"] = "任务进行中"
+            task_state_list[-1]["evaluate_status"] = "任务进行中"
     return {"code": 200, "data": task_state_list}
 
 

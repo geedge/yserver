@@ -35,7 +35,7 @@ class Task(db.Model):
     created_by = db.Column(db.String(255), db.ForeignKey(f'{MYSQL_TAB_USER}.user_id'))
     target_ip = db.Column(db.String(255))
     created_time = db.Column(db.DateTime, server_default=db.func.now())
-    policy = db.Column(db.Integer)
+    ptype = db.Column(db.String(255))
     status = db.Column(db.String(255))
     policy_delay = db.Column(db.String(255))
     task_delay = db.Column(db.String(255))
