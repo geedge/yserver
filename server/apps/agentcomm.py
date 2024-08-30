@@ -13,7 +13,6 @@ from .util import error
 from model import Agent, TaskLog, Policy, TaskPolicy
 from exts import db
 from sqlalchemy.exc import SQLAlchemyError
-from .target import get_pernode_delay
 
 bp = APIBlueprint("代理管理接口集合", __name__, url_prefix="/agent")
 
