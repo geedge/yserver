@@ -2,7 +2,9 @@
 # 时延测试接口
 import ipaddress
 import json
+import random
 import threading
+import asyncio
 from operator import or_
 
 import requests
@@ -66,6 +68,46 @@ class Delay(Schema):
 class DelayOut(Schema):
     code = Integer()
     delay_data = List(Nested(Delay()))
+
+from marshmallow import Schema, fields
+
+class ProtectSchema(Schema):
+    dnssec_enabled = fields.Boolean(description="是否启用 DNSSEC（DNS 安全扩展）")
+    _0x20_encoding = fields.Boolean(description="是否使用 0x20 编码（域名是否随机化大小写）")
+    merge_dup = fields.Boolean(description="是否支持合并重复的 DNS 记录")
+    max_ns_cnt = fields.Integer(description="查询中允许的最大名称服务器（NS）记录数量")
+    max_cname_cnt = fields.Integer(description="查询中允许的最大 CNAME 链深度")
+    retry_limit = fields.Integer(description="在失败后重试 DNS 查询的最大次数")
+    fetch_limit = fields.Integer(description="在一次查询中可以获取的最大资源记录数")
+    timeout = fields.Integer(description="DNS 查询的超时时间，单位是毫秒")
+    random_port = fields.Boolean(description="是否使用随机端口进行 DNS 查询")
+    random_id = fields.Boolean(description="是否使用随机 ID 进行 DNS 查询")
+    version = fields.String(description="DNS 软件版本")
+    bailiwick = fields.Boolean(description="是否遵循 Bailiwick 规则")
+    max_ttl = fields.Integer(description="最大 TTL 值，单位为秒")
+    min_ttl = fields.Integer(description="最小 TTL 值，单位为秒")
+    edns_support = fields.Boolean(description="是否支持 EDNS")
+    rrl_qps = fields.Integer(description="每秒允许的资源记录锁查询次数")
+
+class TestNode(Schema):
+    Id = fields.String()
+    Name = fields.String()
+    Ip = fields.String()
+    Lat = fields.String()
+    Lng = fields.String()
+    Loc = fields.String()
+    addrv4 = fields.String()
+    addrv6 = fields.Boolean()
+    ipv6 = fields.Boolean()
+    dnssec = fields.Boolean()
+    dot = fields.Boolean()
+    doh = fields.Boolean()
+    cou = fields.String()
+    isp = fields.String()
+    lat = fields.String()
+    lng = fields.String()
+    protect = fields.Nested(ProtectSchema)
+
 
 
 # 地图统计信息返回结构体
@@ -458,3 +500,51 @@ def map_info(query_data):
                            "value": 1, })
         query.close()
         return {"code": 200, "dataObject": {"earthAddTitle": target}}
+    
+
+@bp.get("/gz")
+@bp.doc("目标感知")
+@bp.input({
+    "ip": IP(required=True)
+}, location="query")
+@bp.output({
+    "code": Integer(),
+    "dataObject": List(Nested(TargetSchema())),
+})
+def target_GZ(query_data):
+    IP_addr = query_data["ip"]
+    # 获取
+    csgz = db.session.query(Agent).filter_by(agent_type = 'gjst').all()
+    csgz = random.choice(csgz)
+
+    url = f"http://{csgz.ipaddr}:{csgz.port}/target_gz/{IP_addr}"
+    protect = requests.get(url)
+    
+    url = f'https://ipinfo.io/{IP_addr}/json?token=2c3db02b7ffce3'
+    response = requests.get(url)
+    data = response.json()
+
+    # 存数据库
+    tagret = Target(
+        addrv4 = IP_addr,
+        addrv6 = False,
+        ipv6 = False,
+        dnssec = json.loads(protect.text)['dnssec_enabled'],
+        dot = False,
+        doh = False,
+        cou = data.get('country'),
+        isp = data.get('org'),
+        lat = data.get('loc').split(',')[0],
+        lng = data.get('loc').split(',')[1],
+        protect = json.loads(protect.text),
+        doh_domain = None
+    )
+    existing_obj = db.session.query(Target).filter_by(addrv4 = tagret.addrv4).first()
+    if existing_obj:
+        db.session.delete(existing_obj)
+    db.session.add(tagret)
+    db.session.commit()
+    return {
+        'code': 200,
+        'dataObject': tagret
+    }

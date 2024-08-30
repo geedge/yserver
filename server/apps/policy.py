@@ -6,13 +6,14 @@ from .util import is_ipaddress
 
 from exts import db
 from model import Policy, Target, TaskPolicy
+from .target import target_GZ
 
 def chiose_policy(task):
     if task.target_domain is not None:
         res = None
         # TODO:DoH处理
         pass
-    elif task.target_ip is not None:
+    else:
         ip_version = is_ipaddress(task.target_ip)
         if ip_version == 4 :
             res = db.session.query(Target).filter(Target.addrv4==task.target_ip).first()
@@ -24,18 +25,17 @@ def chiose_policy(task):
 
     # 不存在该目标的相关记录
     if not res:
-        # TODO:目标不存在时, 探测目标（fake）
+        target_GZ(task.target_ip)
         proto = ["IPv6"]
-    # 存在该目标的记录
-    else:
-        if res.ipv6:
-            proto.append("IPv6")
-        if res.doh:
-            proto.append("DOH")
-        if res.dot:
-            proto.append("DOT")
-        if res.dnssec:
-            proto.append("DNSSEC")
+
+    if res.ipv6:
+        proto.append("IPv6")
+    if res.doh:
+        proto.append("DOH")
+    if res.dot:
+        proto.append("DOT")
+    if res.dnssec:
+        proto.append("DNSSEC")
 
     # 可选策略范围 policy
     # 根据用户期望手段与目标协议寻找初始化策略

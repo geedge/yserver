@@ -12,11 +12,13 @@ from apiflask import APIFlask
 
 from apps.delay import bp as delaybp
 from apps.script import bp as scriptbp
+from apps.target_gz import bp as ganzhibp
 
 # 注册蓝图
 app = APIFlask(__name__, template_folder='./static/templates')
 app.register_blueprint(delaybp)
 app.register_blueprint(scriptbp)
+app.register_blueprint(ganzhibp)
 # 代理配置
 config = {}
 # 代理类型参数映射表
