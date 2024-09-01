@@ -160,13 +160,12 @@ def get_nodes(query_data):
 
 
 @bp.get("/delay")
-@bp.doc("获取每个节点的时延数据", "type参数为{icmp,dns,tcp}中的一个")
+@bp.doc("获取一个目标每个对应探测节点的时延数据", "type参数为{icmp,dns,tcp}中的一个")
 @bp.input({
     "target": IP(required=True),
     "taskid": String(required=True),
     "type": String(required=True, validate=OneOf(['icmp', 'dns', 'tcp']))}, location="query")
 @bp.output(DelayOut)
-# TODO:和实际节点联调测试
 def get_pernode_delay(query_data):
     query_session = db.session
     # TODO:DoH处理
