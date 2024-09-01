@@ -33,7 +33,8 @@ class Task(db.Model):
     task_name = db.Column(db.String(255))
     agent_id = db.Column(db.String(255), db.ForeignKey(f'{MYSQL_TAB_AGENT}.agent_id'))
     created_by = db.Column(db.String(255), db.ForeignKey(f'{MYSQL_TAB_USER}.user_id'))
-    target_ip = db.Column(db.String(255))
+    # target_ip = db.Column(db.String(255))
+    target_id = db.Column(db.Integer, db.ForeignKey(f'{MYSQL_TAB_TARGETDATA}.target_id'))
     created_time = db.Column(db.DateTime, server_default=db.func.now())
     ptype = db.Column(db.String(255))
     status = db.Column(db.String(255))
@@ -144,6 +145,7 @@ class Target(db.Model):
     })
     doh_domain = db.Column(db.String(255))
 
+    tasks = db.relationship('Task', backref='target')
 
 # 对单个模型操作
 def model_to_dict(model, fields=None, exchange_fields=None):

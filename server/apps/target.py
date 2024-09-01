@@ -14,7 +14,7 @@ from apiflask.validators import OneOf
 from requests.exceptions import Timeout
 from sqlalchemy import distinct, func, case
 
-from apps.util import debug
+from apps.util import debug, is_ipaddress
 from exts import db
 from model import Target, Task, Agent
 
@@ -510,8 +510,14 @@ def map_info(query_data):
     "code": Integer(),
     "dataObject": List(Nested(TargetSchema())),
 })
-def target_GZ(query_data):
-    IP_addr = query_data["ip"]
+def target_GZ_API(query_data):
+    target_GZ(query_data["ip"])
+    return {
+        'code': 200,
+        'MSG': "success"
+    }
+
+def target_GZ(IP_addr):
     # 获取
     csgz = db.session.query(Agent).filter_by(agent_type = 'gjst').all()
     csgz = random.choice(csgz)
@@ -524,10 +530,10 @@ def target_GZ(query_data):
     data = response.json()
 
     # 存数据库
-    tagret = Target(
+    target = Target(
         addrv4 = IP_addr,
         addrv6 = False,
-        ipv6 = False,
+        ipv6 = (6 == is_ipaddress(IP_addr)),
         dnssec = json.loads(protect.text)['dnssec_enabled'],
         dot = False,
         doh = False,
@@ -535,15 +541,18 @@ def target_GZ(query_data):
         isp = data.get('org'),
         lat = data.get('loc').split(',')[0],
         lng = data.get('loc').split(',')[1],
-        protect = json.loads(protect.text),
+        protect = protect.text,
         doh_domain = None
     )
-    existing_obj = db.session.query(Target).filter_by(addrv4 = tagret.addrv4).first()
+    if 6 == is_ipaddress(IP_addr):
+        target.addrv6 = IP_addr
+        target.ipv6 = True
+    elif 4== is_ipaddress(IP_addr):
+        target.addrv4 = IP_addr
+
+    existing_obj = db.session.query(Target).filter_by(addrv4 = target.addrv4).first()
     if existing_obj:
         db.session.delete(existing_obj)
-    db.session.add(tagret)
+    db.session.add(target)
     db.session.commit()
-    return {
-        'code': 200,
-        'dataObject': tagret
-    }
+    return target

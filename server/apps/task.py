@@ -109,7 +109,7 @@ def make_task(json_data):
         task_name=json_data.get("name"),
         agent_id=json_data.get("agent"),
         # created_by = "Admin",
-        target_ip=str(json_data.get("target")),
+        # target_ip=str(json_data.get("target")),
         ptype = json_data["policy"],
         status="working" if json_data.get("run_flag") == "now" else "stop",
         policy_delay=json_data.get("policy_time"),
@@ -125,6 +125,19 @@ def make_task(json_data):
 
     if task.target_rr is not None:
         task.target_rtype, task.target_rr = task.target_rr.split(" ")
+
+    # 关联目标
+    Ip = str(json_data.get("target"))
+    ip_version = is_ipaddress(Ip)
+    target = None
+    if ip_version == 4 :
+        target = db.session.query(Target).filter(Target.addrv4==Ip).first()
+    elif ip_version == 6:
+        target = db.session.query(Target).filter(Target.addrv6==Ip).first()
+    # 不存在该目标的相关记录，自动探测并存入数据库
+    if not target:
+        target = target_GZ(Ip)
+    task.target = target
 
     # 查找所有在线的用于状态感知的agent
     agents = db.session.query(Agent).filter(and_(Agent.status == True, Agent.agent_type == 'ztgz')).all()
@@ -227,7 +240,7 @@ def tasks_state(query_data):
     for task in tasks:
         task_r = {}
         task_r["id"] = task.task_id
-        task_r["target"] = task.target_ip
+        task_r["target"] = f"{task.target.addrv4}|{task.target.addrv6}"
         task_r["name"] = task.task_name
         task_r["agent"] = task.agent_id
         task_r["target_domain"] = task.target_domain,
@@ -305,7 +318,7 @@ def taskpolicy_log(query_data):
 
     log_data = [{
         "time": log.created_time,
-        "targetip": log.task_policy.task.target_ip,
+        "targetip": f"{log.task_policy.task.target.addrv4}|{log.task_policy.task.target.addrv4}",
         "ip": log.task_policy.task.agent.ipaddr,
         "level": log.tlog_level,
         "info": log.tlog_info
