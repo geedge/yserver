@@ -1,14 +1,7 @@
 # 工具包
 import ipaddress
 
-from faker import Faker
-from faker.providers import company
-from faker.providers import date_time
 from loguru import logger
-
-fake = Faker("zh_CN")
-fake.add_provider(date_time)
-fake.add_provider(company)
 
 
 def debug(message, *args, **kwargs):
