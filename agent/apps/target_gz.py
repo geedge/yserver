@@ -20,5 +20,8 @@ def execute_command(IP):
                                 encoding='utf-8')
 
         output = proc.communicate()[0].strip()
+        # 报错的情况
+        if "udp" in output:
+            output = None
 
     return output
