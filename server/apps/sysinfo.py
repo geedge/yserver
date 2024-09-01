@@ -82,17 +82,19 @@ def systate():
     "date_data": Dict(Date(), Nested(TargetOut()))
 })
 def target_date():
-    # 计算过去七天的日期范围
+    # 计算今天和过去七天的日期范围
     today = datetime.date.today()
-    seven_days_ago = today - timedelta(days=7)
+    seven_days_ago = today - timedelta(days=6)  # 计算包括今天在内的过去七天
     
-    # 查询过去七天每一天的数据
+    # 查询过去七天每天的数据
     date_data = {}
     for i in range(7):
         current_date = seven_days_ago + timedelta(days=i)
+        next_day = current_date + timedelta(days=1)
+        
         data = db.session.query(Target).filter(
                 Target.updated_time >= current_date, 
-                Target.updated_time < current_date + timedelta(days=1))
+                Target.updated_time < next_day)
         
         date_data[current_date] = {
             "v6dns": data.filter(Target.ipv6 == True).count(),
@@ -100,6 +102,7 @@ def target_date():
             "doh": data.filter(Target.doh == True).count(),
             "dot": data.filter(Target.dot == True).count()
         }
+    
     return {"code": 200, "date_data": date_data}
 
 
