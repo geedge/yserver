@@ -39,7 +39,7 @@ class TargetSchema(Schema):
     ipv4 = String()
     ipv6 = String()
     protocol = List(String())
-    protect = List(String())
+    protect = String()
     cou = String()
     isp = String()
     lat = String()
@@ -392,7 +392,7 @@ def target_info(query_data):
         target["protocol"] = protocol
 
         # 防护措施特殊处理
-        target["protect"] = str(r.protect).split("|")
+        target["protect"] = json.dumps(r.protect)
         target_list.append(target)
     return {"code": 200, "data": target_list, "total": res_count}
 
