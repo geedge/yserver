@@ -8,7 +8,7 @@ from apps.sysinfo import bp as sysbp
 # from apps.sysmange import bp as mangbp
 from apps.target import bp as targetbp
 from apps.task import bp as taskbp
-from exts import db, login_manager, CORS, Migrate
+from exts import db, login_manager, CORS, Migrate, scheduler
 
 # 注册蓝图
 app = APIFlask(__name__, template_folder='./static/templates')
@@ -38,6 +38,8 @@ db.init_app(app)
 migrate = Migrate(app, db)
 
 login_manager.init_app(app)
+scheduler.init_app(app)
+scheduler.start()
 
 @app.get('/')
 @app.doc("获取测试页面")
