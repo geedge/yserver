@@ -58,12 +58,22 @@ class TaskPolicy(db.Model):
     for_task = db.Column(db.String(255), db.ForeignKey(f'{MYSQL_TAB_TASK}.task_id'))
 
     task_logs = db.relationship('TaskLog', backref='task_policy', cascade='all, delete-orphan')
+    target_status = db.relationship('TargetStatus', backref='task_policy', cascade='all, delete-orphan')
 
+class TargetStatus(db.Model):
+    __tablename__ = MYSQL_TAB_TARGET_STATUS
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True, nullable=False)
+    time = tp_time = db.Column(db.DateTime, server_default=db.func.now())
+    tp_id = db.Column(db.Integer, db.ForeignKey(f'{MYSQL_TAB_TASKPOLICY}.tp_id'))
+    icmp = db.Column(db.Float)
+    tcp = db.Column(db.Float)
+    dns = db.Column(db.Float)
+    recode = db.Column(db.String(255))
 
 class TaskLog(db.Model):
     __tablename__ = MYSQL_TAB_TASK_LOG
     tlog_id = db.Column(db.Integer, primary_key=True, autoincrement=True, nullable=False)
-    created_by_agent = db.Column(db.String(255), db.ForeignKey(f'{MYSQL_TAB_AGENT}.agent_id'))
+    # created_by_agent = db.Column(db.String(255), db.ForeignKey(f'{MYSQL_TAB_AGENT}.agent_id'))
     created_time = db.Column(db.DateTime, server_default=db.func.now())
     tlog_level = db.Column(db.String(255))
     tlog_info = db.Column(db.Text)
