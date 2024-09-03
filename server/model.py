@@ -68,7 +68,7 @@ class TargetStatus(db.Model):
     icmp = db.Column(db.Float)
     tcp = db.Column(db.Float)
     dns = db.Column(db.Float)
-    recorde = db.Column(db.Boolean)
+    recorde = db.Column(db.String(255))
 
 class TaskLog(db.Model):
     __tablename__ = MYSQL_TAB_TASK_LOG
