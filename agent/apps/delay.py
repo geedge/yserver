@@ -1,6 +1,7 @@
 # 状态感知——时延测试
 import time
 
+from apiflask import APIBlueprint
 import dns.nameserver
 from dns import resolver
 from flask import Blueprint, request
@@ -8,7 +9,7 @@ from icmplib import ping
 
 import apps.utiltcping as utping
 
-bp = Blueprint("delay", __name__, url_prefix="/delay")
+bp = APIBlueprint("delay", __name__, url_prefix="/delay")
 
 
 @bp.route("/test")
