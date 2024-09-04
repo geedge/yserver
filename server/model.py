@@ -63,7 +63,7 @@ class TaskPolicy(db.Model):
 class TargetStatus(db.Model):
     __tablename__ = MYSQL_TAB_TARGET_STATUS
     id = db.Column(db.Integer, primary_key=True, autoincrement=True, nullable=False)
-    time = tp_time = db.Column(db.DateTime, server_default=db.func.now())
+    time = db.Column(db.DateTime, server_default=db.func.now())
     tp_id = db.Column(db.Integer, db.ForeignKey(f'{MYSQL_TAB_TASKPOLICY}.tp_id'))
     icmp = db.Column(db.Float)
     tcp = db.Column(db.Float)
@@ -96,7 +96,7 @@ class Agent(db.Model):
     idle = db.Column(db.Boolean)
 
     tasks = db.relationship('Task', backref='agent')
-    task_logs = db.relationship('TaskLog', backref='agent')
+    # task_logs = db.relationship('TaskLog', backref='agent')
 
 class Policy(db.Model):
     __tablename__ = MYSQL_TAB_POLICY
