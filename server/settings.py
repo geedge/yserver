@@ -1,9 +1,9 @@
 import datetime
 
-DEBUG = True
+DEBUG = False
 # 是否以运行效果模拟状态运行，用于控制和代理通信的处理
 RUN_DEV = True
-SERVER_PORT = 12526
+SERVER_PORT = 12530
 START_DAY = datetime.date.today()
 
 # 数据库配置
@@ -21,3 +21,4 @@ MYSQL_TAB_TASK = "TASK"
 MYSQL_TAB_POLICY = "POLICY"
 MYSQL_TAB_TASKPOLICY = "TASK_POLICY"
 MYSQL_TAB_TASK_LOG = "TASK_LOG"
+MYSQL_TAB_TARGET_STATUS = "TARGET_STATUS"
