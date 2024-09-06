@@ -143,7 +143,7 @@ def task_ret(json_data):
         db.session.commit()
         return {"code": 200, "msg": "ok"}
     task_log = TaskLog(
-            created_by_agent = json_data["id"],
+            # created_by_agent = json_data["id"],
             tlog_level = json_data["level"],
             tlog_info = json_data["info"],
             tlog_tp = json_data["taskpolicy"]
