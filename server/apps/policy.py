@@ -88,7 +88,7 @@ def target2polocy(task_policy):
     commmand = task_policy.Policy.p_payload
     # 固定 
         # <target>
-    commmand.replace("<target>", task_policy.task.target.target.addrv4)
+    commmand.replace("<target>", task_policy.task.target.addrv4)
         # 篡改 
         # <tamper> 目标域名 (DoH DoT)
     commmand.replace("<tamper>", task_policy.task.target_domain)
@@ -109,15 +109,15 @@ def generate_parameters(task_policy):
     # 调整
     # DDoS
     # <n> 启动请求发送的进程数(DoT DoH)   包数 (DNSSEC v6)
-    if task_policy.policy.Policy.p_proto=="DOH" or task_policy.policy.Policy.p_proto=="DOT":
-        commmand.replace("<n>", 4)
-    elif task_policy.policy.Policy.p_proto=="DNSSEC" :
-        commmand.replace("<n>", 30000)
-    elif task_policy.policy.Policy.p_proto=="IPv6":
-        commmand.replace("<n>", 10000)
+    if task_policy.Policy.p_proto=="DOH" or task_policy.Policy.p_proto=="DOT":
+        commmand.replace("<n>", '4')
+    elif task_policy.Policy.p_proto=="DNSSEC" :
+        commmand.replace("<n>", '30000')
+    elif task_policy.Policy.p_proto=="IPv6":
+        commmand.replace("<n>", '10000')
     # <r> 发包速率(DNSSEC)
-    if task_policy.policy.Policy.p_proto=="DNSSEC" :
-        commmand.replace("<r>", 300)
+    if task_policy.Policy.p_proto=="DNSSEC" :
+        commmand.replace("<r>", '300')
     # <round> 向CND节点发送的请求次数 (DoT)
     
     # <wait> pending 总时长 (DoT)
