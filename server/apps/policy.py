@@ -91,11 +91,11 @@ def target2polocy(task_policy):
     commmand.replace("<target>", task_policy.task.target.addrv4)
         # 篡改 
         # <tamper> 目标域名 (DoH DoT)
-    commmand.replace("<tamper>", task_policy.task.target_domain)
+    commmand.replace("<target_domain>", task_policy.task.target_domain)
         # 注入
         # <inject> 目标域名 (DoH DoT)
         # <ns>     要注入的记录 (DoH DoT)
-    commmand.replace("<ns>", task_policy.task.target_rr)
+    commmand.replace("<record>", task_policy.task.target_rr)
     task_policy.policy_param = commmand
     
     db.session.add(task_policy)
