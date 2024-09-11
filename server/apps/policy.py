@@ -1,8 +1,10 @@
 # 策略生成与调整，效果评估模块
 import random
 
+import requests
+
 from exts import db
-from model import Policy, TaskPolicy
+from model import Policy, TargetStatus, TaskPolicy
 
 # --------------------------策略-----------------------------
 def chiose_policy(task):
@@ -67,21 +69,50 @@ def init_task_policy(task):
 
 # 自动task_policy调整
 def center_process_unit(task):
-    # TODO 通信
-    policy_list = chiose_policy(task)
-    first_policy = random.choice(policy_list)
-
+    task_policy = db.session.query(TaskPolicy).filter_by(for_task = task.task_id).order_by(TaskPolicy.tp_time.desc()).first()
+    status = db.session.query(TargetStatus).filter_by(tp_id=task_policy.tp_id).order_by(TargetStatus.time.desc()).first()
+    req = {
+        "clxz": task.ptype,
+        "script": task_policy.Policy.p_name,
+        "mbgz": task.target.protect,
+        "ztgz": {
+            "icmp": status.icmp,
+            "tcp": status.tcp,
+            "dns": status.dns,
+            "record": status.recorde,
+        },
+        "para": task_policy.policy_param
+    }
+    url = f"http://localhost:12535"
+    response = requests.get(url, data = req)
+    # data = response.json()
+    data = {
+        "mode": "keep/parameter/script",
+        "script": None,
+        "parameter":{
+            "n": 6,
+        },
+    }
+    if data["mode"]== "keep":
+        copy_task_policy(task)
+    elif data["mode"] == "parameter":
+        policy = task_policy.policy
+        p_payload = task_policy.Policy.p_payload
+    elif data["mode"] == "script":
+        policy = db.session.query(Policy).filter_by(p_name = data["script"]).first().p_id
+        p_payload = db.session.query(Policy).filter_by(p_name = data["script"]).first().p_payload
     task_policy = TaskPolicy(
-        policy = first_policy.p_id,
-        policy_param = first_policy.p_payload,
+        policy = policy,
+        policy_param = p_payload,
         for_task = task.task_id
     )
 
     # 记录该任务策略
     db.session.add(task_policy)
     db.session.commit()
+
     target2polocy(task_policy)
-    adjust_parameters(task_policy)
+    adjust_parameters(task_policy, data["parameter"])
 
 # -----------------------------------------不可调整参数------------------------------------------------
 def target2polocy(task_policy):
@@ -126,15 +157,8 @@ def generate_parameters(task_policy):
 
 # 生成调整参数
 
-def adjust_parameters(task_policy):
-    # 调整
-    # DDoS
-    # <n> 启动请求发送的进程数(DoT DoH)   包数 (DNSSEC v6)
-
-    # <r> 发包速率(DNSSEC)
+def adjust_parameters(task_policy, param):
+    commmand = task_policy.Policy.p_payload
     
-    # <round> 向CND节点发送的请求次数 (DoT)
-    
-    # <wait> pending 总时长 (DoT)
-
-    pass
+    for k, v in param.items():
+        commmand.replace(f"<{k}>", v)
