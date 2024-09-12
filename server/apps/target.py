@@ -6,17 +6,21 @@ import random
 import threading
 import asyncio
 from operator import or_
-
+from concurrent.futures import ThreadPoolExecutor
+from flask import current_app
 import requests
 from apiflask import APIBlueprint, Schema
-from apiflask.fields import Integer, String, List, Nested, IP, DateTime, Dict
+from apiflask.fields import Integer, String, List, Nested, IP, DateTime, Dict, Float
 from apiflask.validators import OneOf
 from requests.exceptions import Timeout
-from sqlalchemy import distinct, func, case
+from sqlalchemy import and_, distinct, func, case
 
 from apps.util import debug, is_ipaddress
-from exts import db
-from model import Target, Task, Agent
+from exts import db, scheduler
+from model import Policy, Target, Task, Agent, TargetStatus, TaskPolicy
+
+from sklearn.cluster import KMeans, MiniBatchKMeans
+import numpy as np
 
 bp = APIBlueprint("目标信息及状态接口集合", __name__, url_prefix="/target")
 
@@ -42,8 +46,8 @@ class TargetSchema(Schema):
     protect = String()
     cou = String()
     isp = String()
-    lat = String()
-    lng = String()
+    lat = Float()
+    lng = Float()
     time = DateTime()
 
 
@@ -51,8 +55,8 @@ class TestNode(Schema):
     Id = String()
     Name = String()
     Ip = String()
-    Lat = String()
-    Lng = String()
+    Lat = Float()
+    Lng = Float()
     Loc = String()
     # Port = Integer()
 
@@ -94,8 +98,8 @@ class TestNode(Schema):
     Name = fields.String()
     Ip = fields.String()
     Lat = fields.String()
-    Lng = fields.String()
-    Loc = fields.String()
+    Lng = fields.Float()
+    Loc = fields.Float()
     addrv4 = fields.String()
     addrv6 = fields.Boolean()
     ipv6 = fields.Boolean()
@@ -104,8 +108,8 @@ class TestNode(Schema):
     doh = fields.Boolean()
     cou = fields.String()
     isp = fields.String()
-    lat = fields.String()
-    lng = fields.String()
+    lat = fields.Float()
+    lng = fields.Float()
     protect = fields.Nested(ProtectSchema)
 
 
@@ -148,8 +152,8 @@ def get_nodes(query_data):
                 "Ip": nodes_info[node.agent_id],
                 # TODO:根据经纬度调整location的值
                 "Loc": "中国",
-                "Lat": node.lat,
-                "Lng": node.lng
+                "Lat": float(node.lat),
+                "Lng": float(node.lng)
             })
         query_session.close()
     else:
@@ -164,7 +168,8 @@ def get_nodes(query_data):
 @bp.input({
     "target": IP(required=True),
     "taskid": String(required=True),
-    "type": String(required=True, validate=OneOf(['icmp', 'dns', 'tcp']))}, location="query")
+    "type": String(required=True, validate=OneOf(['icmp', 'dns', 'tcp']))
+    }, location="query")
 @bp.output(DelayOut)
 def get_pernode_delay(query_data):
     query_session = db.session
@@ -426,79 +431,99 @@ def filter_info():
 @bp.get("/map")
 @bp.doc("地图信息获取接口")
 @bp.input({
-    "protocol": String(load_default=None, validate=OneOf(['IPv6', 'DNSSEC', "DoH", "DoT"])),
-    "cou": String(load_default=None),
-    "isp": String(load_default=None),
-    "ip": IP(load_default=None)
+    "zoom_level": Integer(),
+    "min_lat": Float(required=False),
+    "max_lat": Float(required=False),
+    "min_lng": Float(required=False),
+    "max_lng": Float(required=False)
 }, location="query")
-@bp.output({
-    "code": Integer(),
-    "dataObject": Dict(String(load_default="earthAddTitle"), List(Nested(CouInfo()))),
-})
+# @bp.output({ 
+#     "code": Integer(),
+#     "data": List(Nested(ClusterInfo() if query_data.get("zoom_level") < 10 else TargetInfo())),
+#     "total": Integer(),
+# })
+
 def map_info(query_data):
-    ip = query_data["ip"]
-    proto = query_data["protocol"]
-    cou = query_data["cou"]
-    isp = query_data["isp"]
+    zoom_level = query_data.get("zoom_level")  # 从前端获取缩放级别
+    min_lat = query_data.get("min_lat")  # 获取最小纬度
+    max_lat = query_data.get("max_lat")  # 获取最大纬度
+    min_lng = query_data.get("min_lng")  # 获取最小经度
+    max_lng = query_data.get("max_lng")  # 获取最大经度
+    if zoom_level <= 10:
 
-    query = db.session
-    if ip is None:
-        cou_list = []
+        # 查询目标数据
+        query = db.session.query(Target.lat, Target.lng).filter(
+            and_(
+                Target.lat >= min_lat,
+                Target.lat <= max_lat,
+                Target.lng >= min_lng,
+                Target.lng <= max_lng
+            )
+        )
 
-        # 定义查询
-        data = query.query(
-            Target.cou.label('cou'),
-            func.count().label('count'),
-            func.sum(case((Target.dnssec == True, 1), else_=0)).label('dnssec_sum'),
-            func.sum(case((Target.ipv6 == True, 1), else_=0)).label('ipv6_sum'),
-            func.sum(case((Target.doh == True, 1), else_=0)).label('doh_sum'),
-            func.sum(case((Target.dot == True, 1), else_=0)).label('dot_sum')). \
-            filter(
-            or_(Target.ipv6 == True, proto != 'IPv6'),
-            or_(Target.dnssec == True, proto != 'DNSSEC'),
-            or_(Target.doh == True, proto != 'DoH'),
-            or_(Target.dot == True, proto != 'DoT'),
-            or_(Target.cou == cou, cou == None),
-            or_(Target.isp == isp, isp == None)
-        ). \
-            group_by(
-            Target.cou,
-        ).all()
+        # 查询符合条件的数据
+        res = query.all()
 
-        for d in data:
-            # 单一国家的数据
-            cou_data = {
-                "name": d.cou,
-                'title': "支持各类协议的解析器数量为：{IPv6：" + str(d.ipv6_sum) + "，DNSSEC：" + str(
-                    d.dnssec_sum) + "，DoH：" + str(d.doh_sum) + "，DoT：" + str(d.dot_sum) + "}",
-                "value": d.count
-            }
-            cou_list.append(cou_data)
+        # 结果数量
+        res_count = len(res)
 
-        return {"code": 200, "dataObject": {"earthAddTitle": cou_list}}
-        # 查询目标
+        # 如果没有结果，返回空数据
+        if res_count == 0:
+            return {"code": 200, "data": [], "total": 0}
+
+        # 处理数据，提取经纬度信息
+        lat_lng = np.array([[float(r.lat), float(r.lng)] for r in res])
+        # 聚类操作，当 zoom_level 小于 10 时进行聚类
+        num_clusters = max(1, int(res_count / (30000 / zoom_level)))  # 根据缩放级别动态调整聚类数量
+        kmeans = MiniBatchKMeans(n_clusters=num_clusters, n_init=5, batch_size=1000)
+        kmeans.fit(lat_lng)
+        centers = kmeans.cluster_centers_
+
+        # 聚类结果转换
+        clustered_data = []
+        for i, center in enumerate(centers):
+            clustered_data.append({
+                "lat": center[0],
+                "lng": center[1],
+                "count": int(sum(kmeans.labels_ == i))  # 统计每个聚类的节点数量
+            })
+
+        return {"code": 200, "data": clustered_data}
+
     else:
-        # 查询目标，根据v4、v6地址分类
-        res = query.query(Target).filter(
-            or_(Target.addrv6 == ip, ipaddress.ip_address(ip).version != 6),
-            or_(Target.addrv4 == ip, ipaddress.ip_address(ip).version != 4)).all()
-        # 长度为0，不存在该ip的记录，返回404
-        if len(res) == 0:
-            return {"code": 404, "dataObject": {"earthAddTitle": []}}
+        # 当 zoom_level 大于等于 10 时，返回详细信息
+        r = db.session.query(Target).filter(
+            and_(
+                Target.lat >= min_lat,
+                Target.lat <= max_lat,
+                Target.lng >= min_lng,
+                Target.lng <= max_lng
+            )
+        )
+        target_list = []
+        for r_item in r:
+            target = {
+                "ipv4": r_item.addrv4,
+                "ipv6": r_item.addrv6,
+                "cou": r_item.cou,
+                "isp": r_item.isp,
+                "lat": r_item.lat,
+                "lng": r_item.lng,
+                "time": r_item.updated_time
+            }
 
-        target = []
-        for r in res:
             protocol = []
-            # 目标各协议支持情况
-            proto_state = {"IPv6": r.ipv6, "DNSSEC": r.dnssec, "DoH": r.doh, "DoT": r.dot}
+            proto_state = {"IPv6": r_item.ipv6, "DNSSEC": r_item.dnssec, "DoH": r_item.doh, "DoT": r_item.dot}
             for k, v in proto_state.items():
-                if bool(v) is True:
+                if bool(v):
                     protocol.append(k)
-            target.append({"name": r.cou,
-                           "title": "该解析器支持：" + '、'.join(protocol) + " 协议",
-                           "value": 1, })
-        query.close()
-        return {"code": 200, "dataObject": {"earthAddTitle": target}}
+            target["protocol"] = protocol
+            target["protect"] = json.dumps(r_item.protect)
+
+            target_list.append(target)
+
+        return {"code": 200, "data": target_list}
+
     
 
 @bp.get("/gz")
@@ -539,8 +564,8 @@ def target_GZ(IP_addr):
         doh = False,
         cou = data.get('country'),
         isp = data.get('org'),
-        lat = data.get('loc').split(',')[0],
-        lng = data.get('loc').split(',')[1],
+        lat = float(data.get('loc').split(',')[0]),
+        lng = float(data.get('loc').split(',')[1]),
         protect = protect.text,
         doh_domain = None
     )
