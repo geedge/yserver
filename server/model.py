@@ -132,8 +132,8 @@ class Target(db.Model):
     doh = db.Column(db.Boolean)
     cou = db.Column(db.String(255))
     isp = db.Column(db.String(255))
-    lat = db.Column(db.String(255))
-    lng = db.Column(db.String(255))
+    lat = db.Column(db.Float)
+    lng = db.Column(db.Float)
     updated_time = db.Column(db.DateTime, server_default=db.func.now())
     protect = db.Column(db.JSON, default = {
         "dnssec_enabled": True,          # 是否启用 DNSSEC（DNS 安全扩展）
