@@ -280,22 +280,7 @@ from apiflask.fields import String
 from apiflask.validators import OneOf, ContainsOnly
 from dns import resolver
 
-
-@bp.get("/check")
-@bp.doc("通过指定的解析器获取指定域名的A/AAAA记录", description="参数说明:</br>" +
-                                                                "rev:解析器的IP地址</br>"
-                                                                + "domain:查询的目标域名</br>"
-                                                                + "qtype:查询的记录类型")
-@bp.input({
-    'rev': String(required=True),
-    'domain': String(required=True),
-    'qtype': String(required=True, validate=OneOf(['A', 'AAAA', "CNAME", "NS"]))
-}, location='query')
-@bp.output({
-    "code": Integer(),
-    "ans": List(Dict(String(validate=ContainsOnly(["rrset"])), String()))
-})
-def record(query_data):
+def get_record(query_data):
     # 特殊协议头
     protols = ["https", "tls"]
     ans = []
@@ -327,6 +312,23 @@ def record(query_data):
     if myAnswers.rrset is not None:
         for r in myAnswers.rrset:
             ans.append({"rrset": str(r)})
+    return ans
+@bp.get("/check")
+@bp.doc("通过指定的解析器获取指定域名的A/AAAA记录", description="参数说明:</br>" +
+                                                                "rev:解析器的IP地址</br>"
+                                                                + "domain:查询的目标域名</br>"
+                                                                + "qtype:查询的记录类型")
+@bp.input({
+    'rev': String(required=True),
+    'domain': String(required=True),
+    'qtype': String(required=True, validate=OneOf(['A', 'AAAA', "CNAME", "NS"]))
+}, location='query')
+@bp.output({
+    "code": Integer(),
+    "ans": List(Dict(String(validate=ContainsOnly(["rrset"])), String()))
+})
+def record(query_data):
+   ans = get_record(query_data)
     return {"code": 200, 'ans': ans}
 
 
