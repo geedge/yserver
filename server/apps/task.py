@@ -232,9 +232,9 @@ def tasks_state(query_data):
     per_page = query_data["per_page"]
     page = query_data["page"]
 
-    query = db.session.query(Task).filter().offset((page - 1) * per_page).limit(per_page)
-    tasks = query.all()
+    query = db.session.query(Task).filter().order_by(Task.created_time.desc())
     task_count = query.count()
+    tasks = query.offset((page - 1) * per_page).limit(per_page).all()
 
     task_list = []
     for task in tasks:
@@ -271,21 +271,52 @@ def task_info(query_data):
     if len(task_policies) == 0:
         return {"code": 404, "data": []}
     else:
+        # 初始化 task_state_list
+        task_state_list = []
+
+        # 遍历 task_policies，构建任务状态列表
         for task_policy in task_policies:
-            task_state_list.append({
+            # 查询与当前 task_policy 相关的 TargetStatus，按时间降序排序，取最新一条
+            delay = db.session.query(TargetStatus).filter_by(tp_id=task_policy.tp_id).order_by(TargetStatus.time.desc()).first()
+            
+            # 构建任务状态字典
+            task_state = {
                 "start_time": task_policy.tp_time,
                 "policy_name": task_policy.Policy.p_name,
                 "policy_param": task_policy.policy_param,
                 "policy_id": task_policy.tp_id,
                 "policy_status": "stopped",
-                "evaluate_status": "任务已结束"
+                "evaluate_status": str({
+                    "icmp": delay.icmp,
+                    "tcp": delay.tcp,
+                    "dns": delay.dns,
+                    "record": delay.recorde
+                }) if delay else "暂无数据"
+            }
+
+            task_state_list.append(task_state)
+
+        # 处理最后一个任务状态
+        last_task_state = task_state_list[-1]
+        last_task_policy = task_policies[-1]
+
+        # 根据 task 的状态更新任务状态
+        last_task_state["policy_status"] = task.status
+
+        if task.status == "working":
+            last_task_state["evaluate_status"] = "任务进行中"
+        elif not last_task_policy.target_status:
+            last_task_state["evaluate_status"] = "评估进行中"
+        elif task.status == "stopped":
+            delay = last_task_policy.target_status[-1]
+            last_task_state["evaluate_status"] = str({
+                "icmp": delay.icmp,
+                "tcp": delay.tcp,
+                "dns": delay.dns,
+                "record": delay.recorde
             })
-        task_state_list[-1]["policy_status"] = task.status
-        if task.status == "stopped":
-            # TODO
-            task_state_list[-1]["evaluate_status"] = "《《《时延》》》"
-        elif task.status == "working":
-            task_state_list[-1]["evaluate_status"] = "任务进行中"
+
+        
     return {"code": 200, "data": task_state_list}
 
 
