@@ -8,7 +8,7 @@ from apiflask.fields import String, Integer, List, Nested, Boolean, DateTime, Fl
 from apiflask.validators import OneOf
 from flask import request
 
-from .util import error
+from .util import error, debug
 
 from model import Agent, TaskLog, Policy, TaskPolicy
 from exts import db
@@ -114,13 +114,13 @@ def deliver_task(task_policy):
         error(str(e))
         return str(e)
 
-def stop_task(task_policy):
+def stop_task_deliver(task_policy):
     agent = db.session.query(Agent).get(task_policy.task.agent_id)
     ip, port = agent.ipaddr.split("|")[0], agent.port
     try:
         res = requests.post(f"http://{ip}:{port}/script/stop/{str(task_policy.tp_id)}", timeout=3)
         if res.status_code == 200:
-            task_policy.task.status = "stopped"
+            debug("停止任务")
             return None
         error("任务停止错误，code: " + str(res.status_code) + " err: " + str(res.text))
         return res.text

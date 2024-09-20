@@ -3,7 +3,8 @@ import random
 
 import requests
 
-from exts import db
+from apps.util import debug
+from exts import db, scheduler
 from model import Policy, TargetStatus, TaskPolicy
 
 # --------------------------策略-----------------------------
@@ -31,10 +32,10 @@ def chiose_policy(task):
 
 def copy_task_policy(task):
 
-    last_policy = task.task_policies[-1].Policy
+    last_policy = task.task_policies[-1]
 
     task_policy = TaskPolicy(
-        policy = last_policy.p_id,
+        policy = last_policy.policy,
         policy_param = last_policy.policy_param,
         for_task = last_policy.for_task
     )
@@ -69,6 +70,7 @@ def init_task_policy(task):
 
 # 自动task_policy调整
 def center_process_unit(task):
+    db.session.close()
     task_policy = db.session.query(TaskPolicy).filter_by(for_task = task.task_id).order_by(TaskPolicy.tp_time.desc()).first()
     status = db.session.query(TargetStatus).filter_by(tp_id=task_policy.tp_id).order_by(TargetStatus.time.desc()).first()
     req = {
@@ -83,16 +85,34 @@ def center_process_unit(task):
         },
         "para": task_policy.policy_param
     }
-    url = f"http://localhost:12535"
-    response = requests.get(url, data = req)
-    # data = response.json()
-    data = {
-        "mode": "keep/parameter/script",
-        "script": None,
-        "parameter":{
-            "n": 6,
+    url = f"http://localhost:12535/adjustment"
+    response = requests.post(url, json = req)
+    data = response.json()
+    import random
+
+    data_options = [
+        {
+            "mode": "script",
+            "script": "V6 DDOS",
+            "parameter": {
+                "n": str(random.randint(10000, 30000)),
+            },
         },
-    }
+        {
+            "mode": "script",
+            "script": "V6 数据篡改",
+            "parameter": {
+            },
+        }
+    ]
+
+    # 随机选择一个 data
+    data = random.choices(data_options, weights = [0.6, 0.4])[0]
+
+    debug(data)
+    policy = ""
+    p_payload = {}
+    db.session.close()
     if data["mode"]== "keep":
         copy_task_policy(task)
     elif data["mode"] == "parameter":
@@ -101,6 +121,9 @@ def center_process_unit(task):
     elif data["mode"] == "script":
         policy = db.session.query(Policy).filter_by(p_name = data["script"]).first().p_id
         p_payload = db.session.query(Policy).filter_by(p_name = data["script"]).first().p_payload
+    debug("新策略或者新参数！！！！！！！！！！！！！！！")
+    debug(policy)
+    debug(p_payload)
     task_policy = TaskPolicy(
         policy = policy,
         policy_param = p_payload,
@@ -116,49 +139,61 @@ def center_process_unit(task):
 
 # -----------------------------------------不可调整参数------------------------------------------------
 def target2polocy(task_policy):
-    commmand = task_policy.Policy.p_payload
-    # 固定 
-        # <target>
-    commmand.replace("<target>", task_policy.task.target.addrv4)
-        # 篡改 
-        # <tamper> 目标域名 (DoH DoT)
-    commmand.replace("<target_domain>", task_policy.task.target_domain)
-        # 注入
-        # <inject> 目标域名 (DoH DoT)
-        # <ns>     要注入的记录 (DoH DoT)
-    commmand.replace("<record>", task_policy.task.target_rr)
-    task_policy.policy_param = commmand
-    
-    db.session.add(task_policy)
-    db.session.commit()
+    with scheduler.app.app_context():
+        task_policy = db.session.query(TaskPolicy).filter_by(tp_id = task_policy.tp_id).first()
+        commmand = task_policy.Policy.p_payload
+        # 固定 
+            # <target>
+        commmand = commmand.replace("<target>", task_policy.task.target.addrv4)
+            # 篡改 
+            # <tamper> 目标域名 (DoH DoT)
+        commmand = commmand.replace("<target_domain>", task_policy.task.target_domain)
+            # 注入
+            # <inject> 目标域名 (DoH DoT)
+            # <ns>     要注入的记录 (DoH DoT)
+        commmand = commmand.replace("<record>", task_policy.task.target_rr)
+        task_policy.policy_param = commmand
+        
+        # db.session.add(task_policy)
+        db.session.commit()
 
 # ----------------------------------------可调整参数-----------------------------------------------------
 
 # 生成初始参数
 def generate_parameters(task_policy):
-    commmand = task_policy.Policy.p_payload
-    # 调整
-    # DDoS
-    # <n> 启动请求发送的进程数(DoT DoH)   包数 (DNSSEC v6)
-    if task_policy.Policy.p_proto=="DOH" or task_policy.Policy.p_proto=="DOT":
-        commmand.replace("<n>", '4')
-    elif task_policy.Policy.p_proto=="DNSSEC" :
-        commmand.replace("<n>", '30000')
-    elif task_policy.Policy.p_proto=="IPv6":
-        commmand.replace("<n>", '10000')
-    # <r> 发包速率(DNSSEC)
-    if task_policy.Policy.p_proto=="DNSSEC" :
-        commmand.replace("<r>", '300')
-    # <round> 向CND节点发送的请求次数 (DoT)
+    with scheduler.app.app_context():
     
-    # <wait> pending 总时长 (DoT)
-    db.session.add(task_policy)
-    db.session.commit()
+        task_policy = db.session.query(TaskPolicy).filter_by(tp_id = task_policy.tp_id).first()
+
+        commmand = task_policy.policy_param
+        # 调整
+        # DDoS
+        # <n> 启动请求发送的进程数(DoT DoH)   包数 (DNSSEC v6)
+        if task_policy.Policy.p_proto=="DOH" or task_policy.Policy.p_proto=="DOT":
+            commmand = commmand.replace("<n>", '4')
+        elif task_policy.Policy.p_proto=="DNSSEC" :
+            commmand = commmand.replace("<n>", '30000')
+        elif task_policy.Policy.p_proto=="IPv6":
+            commmand = commmand.replace("<n>", '10000')
+        # <r> 发包速率(DNSSEC)
+        if task_policy.Policy.p_proto=="DNSSEC" :
+            commmand = commmand.replace("<r>", '300')
+        # <round> 向CND节点发送的请求次数 (DoT)
+        
+        # <wait> pending 总时长 (DoT)
+        task_policy.policy_param = commmand
+        # db.session.add(task_policy)
+        db.session.commit()
 
 # 生成调整参数
 
 def adjust_parameters(task_policy, param):
-    commmand = task_policy.Policy.p_payload
-    
-    for k, v in param.items():
-        commmand.replace(f"<{k}>", v)
+    with scheduler.app.app_context():
+        task_policy = db.session.query(TaskPolicy).filter_by(tp_id = task_policy.tp_id).first()
+        commmand = task_policy.policy_param
+        for k, v in param.items():
+            commmand = commmand.replace(f"<{k}>", v)
+        
+        task_policy.policy_param = commmand
+        db.session.add(task_policy)
+        db.session.commit()

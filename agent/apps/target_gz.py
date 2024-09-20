@@ -20,5 +20,8 @@ def execute_command(IP):
                                 encoding='utf-8')
 
         output = proc.communicate()[0].strip()
-    
-    return output
+    try:
+        json.loads(output)
+        return output, 200 
+    except:
+        return 500
