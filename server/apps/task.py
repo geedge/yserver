@@ -393,9 +393,9 @@ def calculate_response_rate(task_policy):
     dns_ratio = (count_above_threshold / total_count) if total_count > 0 else 0
 
     res = {
-        "icmp应答率": icmp_ratio,
-        "tcp应答率": tcp_ratio,
-        "dns应答率": dns_ratio,
+        "icmp_response_rate": icmp_ratio,
+        "tcp_response_rate": tcp_ratio,
+        "dns_response_rate": dns_ratio,
     }
     return res
 
@@ -433,14 +433,14 @@ def task_info(query_data):
                 "policy_param": task_policy.policy_param,
                 "policy_id": task_policy.tp_id,
                 "policy_status": "stopped",
-                "evaluate_status": str({
+                "evaluate_status": str(json.dumps({
                     "icmp": delay.icmp,
                     "tcp": delay.tcp,
                     "dns": delay.dns,
                     "record": delay.recorde,
-                    "服务应答率": calculate_response_rate(task_policy),
-                    "篡改成功率": effective_detection(task_policy),
-                }) if delay else "暂无数据"
+                    "service_response_rate": calculate_response_rate(task_policy),
+                    "tampering_success_rate": effective_detection(task_policy),
+                })) if delay else "暂无数据"
             }
 
             task_state_list.append(task_state)
@@ -458,23 +458,15 @@ def task_info(query_data):
             last_task_state["evaluate_status"] = "评估进行中"
         elif task.status == "stopped":
             delay = last_task_policy.target_status[-1]
-            last_task_state["evaluate_status"] = str({
+            last_task_state["evaluate_status"] = str(json.dumps({
                 "icmp": delay.icmp,
                 "tcp": delay.tcp,
                 "dns": delay.dns,
                 "record": delay.recorde,
-                "服务应答率": calculate_response_rate(task_policy),
-                "篡改成功率": effective_detection(task_policy),
-            })
+                "service_response_rate": calculate_response_rate(task_policy),
+                "tampering_success_rate": effective_detection(task_policy),
+            }))
 
-    策略 = {
-        "应答率": {
-            "策略名": 60
-        },
-        "篡改成功率": {
-            "策略名": 25
-        }
-    }
     return {"code": 200, "data": task_state_list}
 
 
