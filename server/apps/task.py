@@ -223,7 +223,8 @@ def stop_policy_change_timer(task):
 def effective_detection(task_policy):
     with scheduler.app.app_context():
         debug("检测中")
-        base = db.session.query(TargetStatus).filter_by(tp_id=task_policy.tp_id).order_by(TargetStatus.time.asc()).first()
+        base_policy = db.session.query(TaskPolicy).filter(TaskPolicy.for_task==task_policy.for_task).order_by(TaskPolicy.tp_time.asc()).first()
+        base = db.session.query(TargetStatus).filter_by(tp_id=base_policy.tp_id).order_by(TargetStatus.time.desc()).first()
         now = db.session.query(TargetStatus).filter_by(tp_id=task_policy.tp_id).order_by(TargetStatus.time.desc()).first()
 
         rec = None
@@ -364,6 +365,41 @@ def tasks_state(query_data):
     return {"code": 200, "data": task_list, "total": task_count}
 
 
+def calculate_response_rate(task_policy):
+    
+    base_policy = db.session.query(TaskPolicy).filter(TaskPolicy.for_task==task_policy.for_task).order_by(TaskPolicy.tp_time.asc()).first()
+    base = db.session.query(TargetStatus).filter_by(tp_id=base_policy.tp_id).order_by(TargetStatus.time.desc()).first()
+
+    # 查询总记录数和大于 threshold 的记录数
+    total_count = db.session.query(TargetStatus).filter_by(tp_id=task_policy.tp_id).count()
+    
+    # icmp
+    count_above_threshold = db.session.query(TargetStatus).filter(
+        TargetStatus.tp_id == task_policy.tp_id,
+        TargetStatus.icmp > base.icmp
+    ).count()
+    icmp_ratio = (count_above_threshold / total_count) if total_count > 0 else 0
+
+    count_above_threshold = db.session.query(TargetStatus).filter(
+        TargetStatus.tp_id == task_policy.tp_id,
+        TargetStatus.tcp > base.tcp
+    ).count()
+    tcp_ratio = (count_above_threshold / total_count) if total_count > 0 else 0
+
+    count_above_threshold = db.session.query(TargetStatus).filter(
+        TargetStatus.tp_id == task_policy.tp_id,
+        TargetStatus.dns > base.dns
+    ).count()
+    dns_ratio = (count_above_threshold / total_count) if total_count > 0 else 0
+
+    res = {
+        "icmp应答率": icmp_ratio,
+        "tcp应答率": tcp_ratio,
+        "dns应答率": dns_ratio,
+    }
+    return res
+
+
 # 任务详情接口
 @bp.get("/detail")
 @bp.doc("任务执行状态时间轴信息获取接口")
@@ -390,7 +426,6 @@ def task_info(query_data):
         for task_policy in task_policies:
             # 查询与当前 task_policy 相关的 TargetStatus，按时间降序排序，取最新一条
             delay = db.session.query(TargetStatus).filter_by(tp_id=task_policy.tp_id).order_by(TargetStatus.time.desc()).first()
-            
             # 构建任务状态字典
             task_state = {
                 "start_time": task_policy.tp_time,
@@ -402,7 +437,9 @@ def task_info(query_data):
                     "icmp": delay.icmp,
                     "tcp": delay.tcp,
                     "dns": delay.dns,
-                    "record": delay.recorde
+                    "record": delay.recorde,
+                    "服务应答率": calculate_response_rate(task_policy),
+                    "篡改成功率": effective_detection(task_policy),
                 }) if delay else "暂无数据"
             }
 
@@ -425,7 +462,9 @@ def task_info(query_data):
                 "icmp": delay.icmp,
                 "tcp": delay.tcp,
                 "dns": delay.dns,
-                "record": delay.recorde
+                "record": delay.recorde,
+                "服务应答率": calculate_response_rate(task_policy),
+                "篡改成功率": effective_detection(task_policy),
             })
 
     策略 = {
