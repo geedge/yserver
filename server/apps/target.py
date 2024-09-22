@@ -738,7 +738,7 @@ def target_GZ(IP_addr):
         isp = data.get('org'),
         lat = float(data.get('loc').split(',')[0]),
         lng = float(data.get('loc').split(',')[1]),
-        protect = protect.text,
+        protect = json.loads(protect.text),
         doh_domain = None
     )
     db.session.add(target)
