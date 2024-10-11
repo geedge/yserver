@@ -1,5 +1,7 @@
 # 任务管理接口
+from datetime import datetime, timedelta
 import json
+import time
 import uuid
 
 from apiflask import APIBlueprint, Schema
@@ -59,6 +61,8 @@ class TaskState(Schema):
     evaluate_status = String()
     # 当前状态
     policy_status = String()
+    # 策略类型
+    policy_type = String()
     
 
 
@@ -96,7 +100,7 @@ def valid_task_info(task_param: dict):
     "run_time": Integer(load_default=600),
     # 运行配置
     "run_flag": String(validate=OneOf(["now", "man"]), load_default="now")
-}, example={'name': "test_task", 'target': "1.2.3.4", 'agent': "8a9ces", 'target_domain': "www.google.com",
+}, example={'name': "test_task", 'target': "47.76.239.205", 'agent': "inrz674e", 'target_domain': "www.google.com",
             'target_rr': "NS ns.ourattack.com",
             'policy': "auto", 'scan': "auto",
             'policy_time': 60, "run_time": 600, 'run_flag': "now"})
@@ -173,14 +177,15 @@ def make_task(json_data):
     req = {
         "clxz": task_policy.Policy.p_type,
         "script": task_policy.Policy.p_name,
-        "mbgz": json.loads(task.target.protect),
+        "mbgz": task.target.protect,
         "ztgz": {
             "icmp": status.icmp,
             "tcp": status.tcp,
             "dns": status.dns,
             "record": status.recorde,
         },
-        "para": task_policy.policy_param
+        "para": task_policy.policy_param,
+        "task_id": task.task_id
     }
     url = f"http://localhost:12535/initial"
     response = requests.post(url, json=req)
@@ -213,11 +218,19 @@ def start_policy_change_timer(task):
             trigger='interval',  # 触发器类型为间隔
             args = (task, ),  # 传递给函数的参数
             id = f"{task.task_id}chnage",
-            seconds = 300
+            seconds = 30
+        )
+        scheduler.add_job(
+            func = fail_task, 
+            trigger = 'date', 
+            args = (task, ),
+            id = f"{task.task_id}fail",
+            run_date = datetime.now() + timedelta(seconds=int(task.task_delay))
         )
 
 def stop_policy_change_timer(task):
     scheduler.remove_job(f"{task.task_id}chnage")
+    scheduler.remove_job(f"{task.task_id}fail")
 
 # 任务成功检测
 def effective_detection(task_policy):
@@ -269,9 +282,20 @@ def stop_task(task):
 def finish_task(task):
     with scheduler.app.app_context():
         task = db.session.query(Task).filter_by(task_id = task.task_id).first()
-        debug("成功啦|失败！")
+        debug("成功啦")
         task_policy = task.task_policies[-1]
         task.status = "finish"
+        stop_task_monitoring(task)
+        stop_policy_change_timer(task)
+        stop_task_deliver(task_policy)
+        db.session.commit()
+
+def fail_task(task):
+    with scheduler.app.app_context():
+        task = db.session.query(Task).filter_by(task_id = task.task_id).first()
+        debug("失败")
+        task_policy = task.task_policies[-1]
+        task.status = "fail"
         stop_task_monitoring(task)
         stop_policy_change_timer(task)
         stop_task_deliver(task_policy)
@@ -440,32 +464,19 @@ def task_info(query_data):
                     "record": delay.recorde,
                     "service_response_rate": calculate_response_rate(task_policy),
                     "tampering_success_rate": effective_detection(task_policy),
-                })) if delay else "暂无数据"
+                })) if delay else "评估进行中",
+                "policy_type": task_policy.Policy.p_type
             }
 
             task_state_list.append(task_state)
 
         # 处理最后一个任务状态
         last_task_state = task_state_list[-1]
-        last_task_policy = task_policies[-1]
+        # last_task_policy = task_policies[-1]
 
         # 根据 task 的状态更新任务状态
         last_task_state["policy_status"] = task.status
 
-        if task.status == "working":
-            last_task_state["evaluate_status"] = "任务进行中"
-        elif not last_task_policy.target_status:
-            last_task_state["evaluate_status"] = "评估进行中"
-        elif task.status == "stopped":
-            delay = last_task_policy.target_status[-1]
-            last_task_state["evaluate_status"] = str(json.dumps({
-                "icmp": delay.icmp,
-                "tcp": delay.tcp,
-                "dns": delay.dns,
-                "record": delay.recorde,
-                "service_response_rate": calculate_response_rate(task_policy),
-                "tampering_success_rate": effective_detection(task_policy),
-            }))
 
     return {"code": 200, "data": task_state_list}
 

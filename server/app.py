@@ -5,9 +5,10 @@ import settings
 from apps.agentcomm import bp as agentbp
 from apps.login import bp as loginbp
 from apps.sysinfo import bp as sysbp
-# from apps.sysmange import bp as mangbp
+from apps.sysmange import bp as mangbp
 from apps.target import bp as targetbp
 from apps.task import bp as taskbp
+from apps.policy import bp as policybp
 from exts import db, login_manager, CORS, Migrate, scheduler
 
 # 注册蓝图
@@ -21,11 +22,13 @@ app.register_blueprint(agentbp)
 # 任务管理接口
 app.register_blueprint(taskbp)
 # # 系统管理接口
-# app.register_blueprint(mangbp)
+app.register_blueprint(mangbp)
 # 系统状态获取接口
 app.register_blueprint(sysbp)
 # 登录退出接口
 app.register_blueprint(loginbp)
+# 策略接口
+app.register_blueprint(policybp)
 
 app.config[
     "SQLALCHEMY_DATABASE_URI"] = f"mysql+pymysql://root:{settings.MYSQL_PAWD}@{settings.MYSQL_HOST}:{settings.MYSQL_PORT}/{settings.MYSQL_DATADB}"
