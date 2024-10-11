@@ -69,7 +69,7 @@ def register_agent(json_data):
     data = dict(json_data)
     agent = Agent(
         agent_id = "".join(random.sample('1234567890zyxwvutsrqponmlkjihgfedcba', 8)),
-        ipaddr = "|".join([request.remote_addr] + [i for i in data["v6addr"]]),
+        ipaddr = "|".join([request.remote_addr] + [i for i in (data.get("v6addr") or [])]),
         lat = data["lat"],
         lng = data["lng"],
         agent_type = data["atype"],
