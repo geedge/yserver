@@ -91,7 +91,7 @@ def valid_task_info(task_param: dict):
     # 期望注入记录
     "target_rr": String(required=False),
     # 期望策略
-    "policy": String(validate=OneOf(["auto", "ddos", "sjqp"]), load_default="auto"),
+    "policy": String(validate=OneOf(["auto", "ddos", "sjqp", "ddos_f", "sjqp_f"]), load_default="auto"),
     # 状态感知方式
     "scan": String(validate=OneOf(["auto", "icmp", "dns", "tcp", "record"]), load_default="auto"),
     # 策略切换时限,单位分钟
@@ -166,6 +166,8 @@ def make_task(json_data):
 
     # 任务策略初始化
     task_policy = init_task_policy(task)
+    global p_num
+    p_num = 0
     # 创建锚点
     task_monitoring(task)
     
@@ -262,7 +264,8 @@ def adjust_task(task):
         debug("再试试")
         task_policy = db.session.query(TaskPolicy).filter_by(for_task = task.task_id).order_by(TaskPolicy.tp_time.desc()).first()
         stop_task_deliver(task_policy)
-        center_process_unit(task)
+        # center_process_unit(task)
+        init_task_policy(task)
         task_policy = db.session.query(TaskPolicy).filter_by(for_task = task.task_id).order_by(TaskPolicy.tp_time.desc()).first()
         task.status = "working"
         db.session.commit()

@@ -90,12 +90,14 @@ def copy_task_policy(task):
         return task_policy
 
 # ----------------------------------------调整中心----------------------------------------------------
-
+p_num = 0
 # 初始task_policy创建
 def init_task_policy(task):
     policy_list = chiose_policy(task)
-    first_policy = random.choice(policy_list)
-
+    global p_num
+    # first_policy = random.choice(policy_list)
+    first_policy = policy_list[p_num]
+    p_num+=1
     task_policy = TaskPolicy(
         policy = first_policy.p_id,
         policy_param = first_policy.p_payload,
