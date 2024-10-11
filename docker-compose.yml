@@ -1,0 +1,11 @@
+version: '3'
+
+services:
+  server:
+    build: .
+    ports:
+      - "12526:12526"
+    volumes:
+      - ./server:/app  # 将当前目录挂载到容器中的 /app 目录
+    environment:
+      FLASK_ENV: development  # 启用开发模式
