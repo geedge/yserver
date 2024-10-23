@@ -126,6 +126,7 @@ class Target(db.Model):
     target_id = db.Column(db.Integer, primary_key=True, autoincrement=True, nullable=False)
     addrv4 = db.Column(db.String(255))
     addrv6 = db.Column(db.String(255))
+    do53 = db.Column(db.Boolean)
     ipv6 = db.Column(db.Boolean)
     dnssec = db.Column(db.Boolean)
     dot = db.Column(db.Boolean)

@@ -4,7 +4,7 @@ WORKDIR /app
 
 COPY requirements.txt .
 
-# Ê¹ÓÃ¹úÄÚÔ´°²×°ÒÀÀµ
+# ä½¿ç”¨å›½å†…æºå®‰è£…ä¾èµ–
 RUN pip install --no-cache-dir -r requirements.txt -i https://pypi.tuna.tsinghua.edu.cn/simple
 
 COPY . .

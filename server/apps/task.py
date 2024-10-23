@@ -165,30 +165,31 @@ def make_task(json_data):
         return {"code": 500, "msg": str(e)}
 
     # 任务策略初始化
-    task_policy = init_task_policy(task)
+    # task_policy = init_task_policy(task)
+    task_policy = get_policy_dic(task)
     # 创建锚点
     task_monitoring(task)
     
     # 初始化决策中心
-    db.session.close()
-    task_policy = db.session.query(TaskPolicy).filter_by(for_task = task.task_id).order_by(TaskPolicy.tp_time.desc()).first()
-    status = db.session.query(TargetStatus).filter_by(tp_id=task_policy.tp_id).order_by(TargetStatus.time.desc()).first()
+    # db.session.close()
+    # task_policy = db.session.query(TaskPolicy).filter_by(for_task = task.task_id).order_by(TaskPolicy.tp_time.desc()).first()
+    # status = db.session.query(TargetStatus).filter_by(tp_id=task_policy.tp_id).order_by(TargetStatus.time.desc()).first()
 
-    req = {
-        "clxz": task_policy.Policy.p_type,
-        "script": task_policy.Policy.p_name,
-        "mbgz": task.target.protect,
-        "ztgz": {
-            "icmp": status.icmp,
-            "tcp": status.tcp,
-            "dns": status.dns,
-            "record": status.recorde,
-        },
-        "para": task_policy.policy_param,
-        "task_id": task.task_id
-    }
-    url = f"http://localhost:12535/initial"
-    response = requests.post(url, json=req)
+    # req = {
+    #     "clxz": task_policy.Policy.p_type,
+    #     "script": task_policy.Policy.p_name,
+    #     "mbgz": task.target.protect,
+    #     "ztgz": {
+    #         "icmp": status.icmp,
+    #         "tcp": status.tcp,
+    #         "dns": status.dns,
+    #         "record": status.recorde,
+    #     },
+    #     "para": task_policy.policy_param,
+    #     "task_id": task.task_id
+    # }
+    # url = f"http://localhost:12535/initial"
+    # response = requests.post(url, json=req)
 
     # 开启监控
     start_task_monitoring(task)
@@ -218,7 +219,7 @@ def start_policy_change_timer(task):
             trigger='interval',  # 触发器类型为间隔
             args = (task, ),  # 传递给函数的参数
             id = f"{task.task_id}chnage",
-            seconds = 30
+            seconds = 600
         )
         scheduler.add_job(
             func = fail_task, 
@@ -235,15 +236,13 @@ def stop_policy_change_timer(task):
 # 任务成功检测
 def effective_detection(task_policy):
     with scheduler.app.app_context():
-        debug("检测中")
         base_policy = db.session.query(TaskPolicy).filter(TaskPolicy.for_task==task_policy.for_task).order_by(TaskPolicy.tp_time.asc()).first()
-        base = db.session.query(TargetStatus).filter_by(tp_id=base_policy.tp_id).order_by(TargetStatus.time.desc()).first()
+        base = db.session.query(TargetStatus).filter_by(tp_id=base_policy.tp_id).order_by(TargetStatus.time.asc()).first()
         now = db.session.query(TargetStatus).filter_by(tp_id=task_policy.tp_id).order_by(TargetStatus.time.desc()).first()
 
         rec = None
         p_type = db.session.query(Policy).filter_by(p_id=task_policy.policy).first().p_type
         if p_type=="ddos":
-            debug("是ddos")
             target_scan = db.session.query(Task).filter_by(task_id = task_policy.for_task).first().target_scan
             if target_scan=="auto" or target_scan=="icmp":
                 rec = base.icmp*5 < now.icmp       
@@ -262,7 +261,8 @@ def adjust_task(task):
         debug("再试试")
         task_policy = db.session.query(TaskPolicy).filter_by(for_task = task.task_id).order_by(TaskPolicy.tp_time.desc()).first()
         stop_task_deliver(task_policy)
-        center_process_unit(task)
+        # center_process_unit(task)
+        get_policy_dic(task)
         task_policy = db.session.query(TaskPolicy).filter_by(for_task = task.task_id).order_by(TaskPolicy.tp_time.desc()).first()
         task.status = "working"
         db.session.commit()
@@ -400,26 +400,26 @@ def calculate_response_rate(task_policy):
     # icmp
     count_above_threshold = db.session.query(TargetStatus).filter(
         TargetStatus.tp_id == task_policy.tp_id,
-        TargetStatus.icmp > base.icmp
+        TargetStatus.icmp > 1.5*base.icmp
     ).count()
     icmp_ratio = (count_above_threshold / total_count) if total_count > 0 else 0
 
     count_above_threshold = db.session.query(TargetStatus).filter(
         TargetStatus.tp_id == task_policy.tp_id,
-        TargetStatus.tcp > base.tcp
+        TargetStatus.tcp > 1.5*base.tcp
     ).count()
     tcp_ratio = (count_above_threshold / total_count) if total_count > 0 else 0
 
     count_above_threshold = db.session.query(TargetStatus).filter(
         TargetStatus.tp_id == task_policy.tp_id,
-        TargetStatus.dns > base.dns
+        TargetStatus.dns > 1.5*base.dns
     ).count()
     dns_ratio = (count_above_threshold / total_count) if total_count > 0 else 0
 
     res = {
-        "icmp_response_rate": icmp_ratio,
-        "tcp_response_rate": tcp_ratio,
-        "dns_response_rate": dns_ratio,
+        "icmp_response_rate": 1-icmp_ratio,
+        "tcp_response_rate": 1-tcp_ratio,
+        "dns_response_rate": 1-dns_ratio,
     }
     return res
 
@@ -438,7 +438,8 @@ def task_info(query_data):
     task = db.session.query(Task).get(query_data["taskid"])
     if task is None:
         return {"code": 404, "data": []}
-    task_policies = task.task_policies
+    # task_policies = task.task_policies
+    task_policies = db.session.query(TaskPolicy).filter(TaskPolicy.for_task== task.task_id).order_by(TaskPolicy.tp_time.asc()).all()
     task_state_list = []
     if len(task_policies) == 0:
         return {"code": 404, "data": []}

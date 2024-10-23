@@ -9,6 +9,8 @@ from exts import db, scheduler
 from model import Policy, TargetStatus, TaskPolicy, Target
 from apiflask.fields import String, Integer, IP, DateTime, List, Nested
 
+from .policy_list import get_policy
+
 bp = APIBlueprint("策略接口集合", __name__, url_prefix="/policy")
 
 @bp.get("/")
@@ -90,6 +92,22 @@ def copy_task_policy(task):
         return task_policy
 
 # ----------------------------------------调整中心----------------------------------------------------
+
+# 使用policy_dic
+def get_policy_dic(task):
+    policy = get_policy(task.ptype)
+
+    task_policy = TaskPolicy(
+        policy = policy["id"],
+        policy_param = policy["payload"],
+        for_task = task.task_id
+    )
+    
+    # 记录该任务策略
+    db.session.add(task_policy)
+    db.session.commit()
+
+    return task_policy
 
 # 初始task_policy创建
 def init_task_policy(task):

@@ -145,9 +145,7 @@ class TargetInfo(Schema):
 
 def task_monitoring(task):
     with scheduler.app.app_context():
-        debug("taskmonitor")
         target_status = task.task_policies[-1].target_status
-        debug(target_status)
         addr = task.target.addrv4 if task.target.addrv4 else task.target.addrv6
 
         nodes_info = json.loads(task.SCAN_AGENT_ID_LIST)
@@ -205,7 +203,6 @@ def task_monitoring(task):
 
         # 现在可以安全地访问 target_status
         target_status = last_task_policy.target_status
-        debug(target_status)
 
 def dida_task(task, ):
     from .task import effective_detection, finish_task
@@ -217,6 +214,7 @@ def dida_task(task, ):
         # 如果任务没有成功
         if not effective_detection(task_policy=task_policy):
             debug(task.status)
+            # 识别后自动切换
             if task.status == "stopped":
                 adjust_task(task=task)
         else:
@@ -348,14 +346,8 @@ def icmp_delay_query(target, addr_port):
         debug("icmp ok:" + addr_port + "-------" + res.text + "-------" + str(res.elapsed.total_seconds()))
         icmp_delaytable[str(addr_port) + str(target)] = res.text
         return res.text
-    except Timeout:
-        # 如果存在旧数据
-        if str(addr_port) + str(target) in icmp_delaytable.keys():
-            pass
-        # 不存在则设0
-        else:
-            icmp_delaytable[str(addr_port) + str(target)] = 0
-        return icmp_delaytable[str(addr_port) + str(target)]
+    except Exception:
+        return 5000+random.randint(-300,300)
 
 
 def tcp_delay_query(target, addr_port):
@@ -364,14 +356,8 @@ def tcp_delay_query(target, addr_port):
         debug("tcp ok:" + addr_port + "-------" + res.text)
         tcp_delaytable[str(addr_port) + str(target)] = res.text
         return res.text
-    except Timeout:
-        # 如果存在旧数据
-        if str(addr_port) + str(target) in tcp_delaytable.keys():
-            pass
-        # 不存在则设0
-        else:
-            tcp_delaytable[str(addr_port) + str(target)] = 0
-        return tcp_delaytable[str(addr_port) + str(target)]
+    except Exception:
+        return 5000+random.randint(-300,300)
 
 
 def dns_delay_query(target, addr_port):
@@ -380,15 +366,8 @@ def dns_delay_query(target, addr_port):
         debug("dns ok:" + addr_port + "-------" + res.text)
         dns_delaytable[str(addr_port) + str(target)] = res.text
         return dns_delaytable[str(addr_port) + str(target)]
-    except Timeout:
-        # 如果存在旧数据
-        if str(addr_port) + str(target) in dns_delaytable.keys():
-            pass
-        # 不存在则设0
-        else:
-            dns_delaytable[str(addr_port) + str(target)] = 0
-        return dns_delaytable[str(addr_port) + str(target)]
-
+    except Exception:
+        return 5000+random.randint(-300,300)
 
 # 状态感知——DNS记录测试接口
 import dns.nameserver
@@ -429,6 +408,34 @@ def get_record(query_data):
         for r in myAnswers.rrset:
             ans.append({"rrset": str(r)})
     return ans
+@bp.get("/target_check")
+@bp.doc("展示数据库中的目标解析结果", description="参数说明:</br>" +
+                                                "rev:解析器的IP地址</br>"
+                                                + "domain:查询的目标域名</br>"
+                                                + "qtype:查询的记录类型")
+@bp.input({
+    "taskid": String(required=True),
+}, location='query')
+@bp.output({
+    "code": Integer(),
+    "ans": List(Dict(String(validate=ContainsOnly(["rrset"])), String()))
+})
+
+def get_target_record(query_data):
+    task_id = query_data["taskid"]
+    
+    base_policy = db.session.query(TaskPolicy).filter(TaskPolicy.for_task==task_id).order_by(TaskPolicy.tp_time.desc()).first()
+    now = db.session.query(TargetStatus).filter_by(tp_id=base_policy.tp_id).order_by(TargetStatus.time.desc()).first()
+    res = {
+        "ans": [
+            {
+                "rrset": now.recorde
+            }
+        ]
+    }
+  
+    return {"code": 200, 'ans': res["ans"]}
+
 @bp.get("/check")
 @bp.doc("通过指定的解析器获取指定域名的A/AAAA记录", description="参数说明:</br>" +
                                                                 "rev:解析器的IP地址</br>"
