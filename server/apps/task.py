@@ -231,7 +231,6 @@ def start_policy_change_timer(task):
 
 def stop_policy_change_timer(task):
     scheduler.remove_job(f"{task.task_id}chnage")
-    scheduler.remove_job(f"{task.task_id}fail")
 
 # 任务成功检测
 def effective_detection(task_policy):

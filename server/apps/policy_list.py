@@ -21,9 +21,9 @@ ddos_policy_dic = [
     {"id": "7", "payload": "-n 4"},
     
     # dot python3 start_pending.py 
-    {"id": "10", "payload": "-n 8 -wait 50 -round 1"},
-    {"id": "10", "payload": "-n 8 -wait 100 -round 5"},
-    {"id": "10", "payload": "-n 8 -wait 300 -round 5"},
+    {"id": "10", "payload": "-n 2 -wait 50 -round 1"},
+    {"id": "10", "payload": "-n 2 -wait 100 -round 5"},
+    {"id": "10", "payload": "-n 2 -wait 300 -round 5"},
 ]
 sjqp_policy_dic = [
     # sjqp dnssec python proxy.py

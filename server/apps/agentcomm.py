@@ -138,14 +138,24 @@ def task_ret(json_data):
         task_policy.task.status = "stopped"
         db.session.commit()
         return {"code": 200, "msg": "ok"}
-    task_log = TaskLog(
-            # created_by_agent = json_data["id"],
-            tlog_level = json_data["level"],
-            tlog_info = json_data["info"],
-            tlog_tp = json_data["taskpolicy"]
-    )
-    try:
+    import re
+
+    # 模拟输入的日志数据
+    log_data = json_data["info"]
+    if "tlog" not in log_data:
+        log_data = log_data.replace("log", "tlog")
+    log_entries = re.findall(r'\{.*?\}', log_data)
+
+    # 将每个匹配的字符串作为列表项
+    for entry in log_entries:
+        task_log = TaskLog(
+                # created_by_agent = json_data["id"],
+                tlog_level = json_data["level"],
+                tlog_info = entry,
+                tlog_tp = json_data["taskpolicy"]
+        )
         db.session.add(task_log)
+    try:
         db.session.commit()
         return {"code": 200, "msg": "ok"}
     except SQLAlchemyError as e:
