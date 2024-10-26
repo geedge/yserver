@@ -18,7 +18,7 @@ from sqlalchemy import and_, distinct, func, case
 
 from apps.util import debug, is_ipaddress
 from exts import db, scheduler
-from model import Policy, Target, Task, Agent, TargetStatus, TaskPolicy
+from model import Policy, Target, Task, Agent, TargetStatus, TaskPolicy, Target2
 
 from sklearn.cluster import KMeans, MiniBatchKMeans
 import numpy as np
@@ -660,26 +660,57 @@ def map_info(query_data):
 @bp.input({
     "ip": String(required=True)
 }, location="query")
-@bp.output({
-    "code": Integer(),
-    "dataObject": Nested(TargetSchema())
-})
+# @bp.output({
+#     "code": Integer(),
+#     "dataObject": Nested(TargetSchema())
+# })
 def target_GZ_API(query_data):
     ip = query_data["ip"]
     target = target_GZ(ip)
     target_dict = {
-            "addrv4": target.addrv4,
-            "addrv6": target.addrv6,
-            "ipv6": target.ipv6,
-            "dnssec": target.dnssec,
-            "dot": target.dot,
-            "doh": target.doh,
-            "cou": target.cou,
-            "isp": target.isp,
-            "lat": target.lat,
-            "lng": target.lng,
-            "protect": target.protect,
-            "doh_domain": target.doh_domain
+            "addrv4": target.IP,
+            "addrv6": target.IPv6,
+            "protocol":{
+                "Do53": target.Do53,
+                "DoH": target.DoH,
+                "DoT": target.DoT
+            },
+            "parameter":{
+                "tls_jarm_fingerprint": target.tls_jarm_fingerprint,  # TLS指纹
+                "certificate_serial": target.certificate_serial,  # 证书序列号
+                "certificate_issuer": target.certificate_issuer,  # 证书颁发者
+                "certificate_cn": target.certificate_cn,  # 证书CN/SAN
+                "certificate_san": target.certificate_san,
+                "certificate_validity": target.certificate_validity,  # 证书有效性
+                "http_max_version": target.http_max_version,  # HTTP最大版本
+                "service_path": target.service_path,  # 服务路径
+                "request_method": target.request_method,  # 请求方法
+                "http_status_code": target.http_status_code,  # 状态码
+                "http_version": target.http_version,  # HTTP版本
+                "http_headers": target.http_headers,  # HTTP头信息
+                "nsec3_support": target.nsec3_support,  # NSEC3支持
+                "encryption_algorithms": target.encryption_algorithms,  # 加密算法
+                "downgrade_attack": target.downgrade_attack,  # 可降级攻击
+                "dns_response_packet": target.dns_response_packet,
+                "edns": target.edns,  # EDNS支持
+                "merge_dup": target.merge_dup,  # 合并重复请求
+                "dnssec": target.dnssec,  # DNSSEC支持
+                "0x20": target.proto0x20,  # 0x20编码
+                "any_response": target.any_response,  # 最大并发响应
+                "max_ns_cnt": target.max_ns_cnt,  # 最大委派上限
+                "max_cname_cnt": target.max_cname_cnt,  # 最大重定向上限
+                "rrl": target.rrl,  # 响应速率限制
+                "bailiwick": target.bailiwick,  # Bailiwick验证
+                "random_id": target.random_id,  # 随机ID
+                "random_port": target.random_port,  # 随机端口
+                "version": target.version,  # 版本
+                "max_ttl": target.max_ttl,  # 最大TTL
+                "min_ttl": target.min_ttl,  # 最小TTL
+                "retry_limit": target.retry_limit,  # 重试次数
+                "timeout": target.timeout,  # 超时时间
+                "fetch_limit": target.fetch_limit  # 最大查询限制
+            }
+
         }
     return {
         'code': 200,
@@ -688,8 +719,8 @@ def target_GZ_API(query_data):
 
 def target_GZ(IP_addr):
 
-    existing_obj = db.session.query(Target).filter(
-        (Target.addrv4 == IP_addr) | (Target.addrv6 == IP_addr)
+    existing_obj = db.session.query(Target2).filter(
+        (Target2.IP == IP_addr) | (Target2.IPv6 == IP_addr)
     ).first()
     if existing_obj:
         return existing_obj
@@ -704,7 +735,7 @@ def target_GZ(IP_addr):
         ipv4 = IP_addr
 
     # 获取随机的 agent
-    csgz = db.session.query(Agent).filter_by(agent_type='gjst').all()
+    csgz = db.session.query(Agent).filter(Agent.agent_type=='gjst').filter(Agent.agent_id=="inrz674e").all()
     csgz = random.choice(csgz)
 
     # 根据 IP 地址类型构建 URL
@@ -719,34 +750,50 @@ def target_GZ(IP_addr):
     # 发送请求
     i = 0
     while i < 30:
-        protect = requests.get(url)
-        status_code = protect.status_code
+        data = requests.get(url, timeout = 180)
+        status_code = data.status_code
         debug(f"目标感知：重试{i}次")
         i+=1
         if status_code == 200:
             break
         else:
             time.sleep(0.5)
-
-
-    url = f'https://ipinfo.io/{IP_addr}/json?token=2c3db02b7ffce3'
-    response = requests.get(url)
-    data = response.json()
-
+    data = data.json()
     # 存数据库
-    target = Target(
-        addrv4 = ipv4,
-        addrv6 = ipv6,
-        ipv6 = (6 == is_ipaddress(IP_addr)),
-        dnssec = json.loads(protect.text)['dnssec_enabled'],
-        dot = False,
-        doh = False,
-        cou = data.get('country'),
-        isp = data.get('org'),
-        lat = float(data.get('loc').split(',')[0]),
-        lng = float(data.get('loc').split(',')[1]),
-        protect = json.loads(protect.text),
-        doh_domain = None
+    target = Target2(
+        IP=data['IP'],
+        Do53=data['Do53'],
+        DoH=data['DoH'],
+        DoT=data['DoT'],
+        dnssec=data['dnssec'],
+        merge_dup=data['merge_dup'],
+        max_ns_cnt=data['max_ns_cnt'],
+        max_cname_cnt=data['max_cname_cnt'],
+        retry_limit=data['retry_limit'],
+        fetch_limit=data['fetch_limit'],
+        timeout=data['timeout'],
+        random_port=bool(data['random_port']),
+        random_id=bool(data['random_id']),
+        version=data['version'],
+        bailiwick=data['bailiwick'],
+        max_ttl=data['max_ttl'],
+        min_ttl=data['min_ttl'],
+        edns=data['edns'],
+        any_response=data['any_response'],
+        rrl=data['rrl'],
+        service_path=data['service_path'],
+        http_max_version=data['http_max_version'],
+        request_method=data['request_method'],
+        http_status_code=data['http_status_code'],
+        http_version=data['http_version'],
+        http_headers=data['http_headers'],
+        web_component=data['web_component'],
+        tls_jarm_fingerprint=data['tls_jarm_fingerprint'],
+        certificate_serial=data['certificate_serial'],
+        certificate_issuer=data['certificate_issuer'],
+        certificate_cn=data['certificate_cn'],
+        certificate_san=data['certificate_san'],
+        certificate_validity=data['certificate_validity']
     )
     db.session.add(target)
     db.session.commit()
