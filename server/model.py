@@ -94,6 +94,7 @@ class Agent(db.Model):
     status = db.Column(db.Boolean)
     mem = db.Column(db.String(255))
     idle = db.Column(db.Boolean)
+    con = db.Column(db.String(255))
 
     tasks = db.relationship('Task', backref='agent')
     # task_logs = db.relationship('TaskLog', backref='agent')
@@ -162,8 +163,8 @@ class Target(db.Model):
 class Target2(db.Model):
     __tablename__ = 'PROFILE'
     id = db.Column(db.Integer, primary_key=True, autoincrement=True)
-    IP = db.Column(db.String(255), nullable=True)
-    IPv6 = db.Column(db.String(255), nullable=True)
+    IP = db.Column(db.String(255), nullable=True, index=True)
+    IPv6 = db.Column(db.String(255), nullable=True, index=True)
     last_probe_time = db.Column(db.Integer, nullable=True)
     previous_probe_time = db.Column(db.Integer, nullable=True)
     port = db.Column(db.String(255), nullable=True)

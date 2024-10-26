@@ -40,12 +40,12 @@ def nodeinfo():
     # IP地址
     # IPv4地址通过向主控端发包时在主控端获取，从而定位最准确的IPv4地址（公网、内网）
     # IPv6地址获取本地的所有公网地址
-    v6addr = []
-    addr6_info_list = socket.getaddrinfo(socket.gethostname(), None, socket.AF_INET6)
-    for a in addr6_info_list:
-        addr = ipaddress.ip_address(a[4][0])
-        if addr.is_global:
-            v6addr.append(a[4][0])
+    # v6addr = []
+    # addr6_info_list = socket.getaddrinfo(socket.gethostname(), None, socket.AF_INET6)
+    # for a in addr6_info_list:
+    #     addr = ipaddress.ip_address(a[4][0])
+    #     if addr.is_global:
+    #         v6addr.append(a[4][0])
 
     # 经纬度
     # 使用ipinfo.io进行定位，调用token
@@ -66,7 +66,7 @@ def nodeinfo():
     # 操作系统
     system = platform.system()
     #
-    return {'v6addr': v6addr, 'lat': lat, 'lng': lng, 'cpu_num': cpu_num, 'ram_size': ram_size, 'ram_per': ram_per,
+    return {'v6addr': ["None"], 'lat': lat, 'lng': lng, 'cpu_num': cpu_num, 'ram_size': ram_size, 'ram_per': ram_per,
             'sys': system}
 
 

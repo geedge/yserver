@@ -675,6 +675,8 @@ def target_GZ_API(query_data):
                 "DoH": target.DoH,
                 "DoT": target.DoT
             },
+            "lat": target.latwgs,
+            "lng": target.lngwgs,
             "parameter":{
                 "tls_jarm_fingerprint": target.tls_jarm_fingerprint,  # TLS指纹
                 "certificate_serial": target.certificate_serial,  # 证书序列号

@@ -11,3 +11,4 @@ pyyaml~=6.0.1
 dnspython~=2.6.1
 icmplib~=3.0.4
 ipinfo
+loguru
