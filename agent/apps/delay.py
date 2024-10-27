@@ -3,8 +3,12 @@ import random
 import time
 
 from apiflask import APIBlueprint
+import dns.flags
+import dns.message
 import dns.nameserver
 from dns import resolver
+import dns.query
+import dns.resolver
 from flask import Blueprint, request
 from icmplib import ping
 
@@ -67,11 +71,12 @@ def dnsdelay():
 
     start_time = time.time()
     # 解析器配置
-    myResolver = resolver.Resolver()
-    myResolver.nameservers = [dns.nameserver.Do53Nameserver(addr, port=port)]
-
+    # myResolver = resolver.Resolver()
+    # myResolver.nameservers = [dns.nameserver.Do53Nameserver(addr, port=port)]
+    query = dns.message.make_query(qname=domain, rdtype=qtype, flags=0)
     # 开始解析
-    ans = myResolver.resolve(domain, qtype, lifetime=4)
+    # ans = myResolver.resolve(domain, qtype, lifetime=4)
+    ans = dns.query.udp(query, where=addr, port=port, timeout=10)
     stop_time = time.time()
     t = stop_time - start_time
     return str(format(t * 1000, ".3f"))

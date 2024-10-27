@@ -34,7 +34,7 @@ app.config[
     "SQLALCHEMY_DATABASE_URI"] = f"mysql+pymysql://root:{settings.MYSQL_PAWD}@{settings.MYSQL_HOST}:{settings.MYSQL_PORT}/{settings.MYSQL_DATADB}"
 # app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///project.db"
 app.config['SECRET_KEY'] = 'your-secret-key'
-
+app.config['JSONIFY_DATETIME_FORMAT'] = 'iso'
 app.debug = False
 
 db.init_app(app)

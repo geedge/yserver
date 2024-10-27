@@ -95,7 +95,7 @@ def copy_task_policy(task):
 
 # 使用policy_dic
 def get_policy_dic(task):
-    policy = get_policy(task.ptype)
+    policy = get_policy(task.ptype, task.task_id)
 
     task_policy = TaskPolicy(
         policy = policy["id"],

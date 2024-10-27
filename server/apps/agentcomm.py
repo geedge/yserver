@@ -28,6 +28,7 @@ class AgentOutput(Schema):
     cpu_num = Integer()
     mem = String()
     start_time = DateTime()
+    con = String()
 
 
 # 代理注册接口
@@ -211,6 +212,7 @@ def agent_info(query_data):
         agent_r["cpu_num"] = agent.cpu_num
         agent_r["mem"] = agent.mem
         agent_r["start_time"] = agent.start_time
+        agent_r["con"] = agent.con
         agent_list.append(agent_r)
     return {"code": 200, "agent_data": agent_list, "total": agent_count}
 

@@ -87,9 +87,9 @@ def valid_task_info(task_param: dict):
     # 执行代理
     "agent": String(),
     # 目标域名
-    "target_domain": String(required=False),
+    "target_domain": String(required=False, load_default="www.google.com"),
     # 期望注入记录
-    "target_rr": String(required=False),
+    "target_rr": String(required=False, load_default="NS ns.ourattack.com"),
     # 期望策略
     "policy": String(validate=OneOf(["auto", "ddos", "sjqp"]), load_default="auto"),
     # 状态感知方式
@@ -110,6 +110,7 @@ def valid_task_info(task_param: dict):
 })
 # TODO: 需要更新接口，created_by
 def make_task(json_data):
+
     task = Task(
         task_id=str(uuid.uuid1()),
         task_name=json_data.get("name"),
@@ -121,9 +122,8 @@ def make_task(json_data):
         policy_delay=json_data.get("policy_time"),
         task_delay=json_data.get("run_time"),
         target_scan=json_data.get("scan"),
-        target_domain=json_data.get("target_domain"),
-        # target_rtype=,
-        target_rr=json_data.get("target_rr")
+        target_domain = json_data.get("target_domain", "www.google.com") or "www.google.com",
+        target_rr = json_data.get("target_rr", "NS ns.ourattack.com") or "NS ns.ourattack.com"
     )
     if task.ptype == "sjqp":
         if task.target_rr == "" or task.target_domain == "":
@@ -243,12 +243,12 @@ def effective_detection(task_policy):
         p_type = db.session.query(Policy).filter_by(p_id=task_policy.policy).first().p_type
         if p_type=="ddos":
             target_scan = db.session.query(Task).filter_by(task_id = task_policy.for_task).first().target_scan
-            if target_scan=="auto" or target_scan=="icmp":
-                rec = base.icmp*5 < now.icmp       
+            if target_scan=="icmp":
+                rec = base.icmp*4 < now.icmp       
             elif target_scan=="tcp":
-                rec = base.tcp*5 < now.tcp       
-            elif target_scan=="dns":
-                rec = base.dns*5 < now.dns       
+                rec = base.tcp*4 < now.tcp       
+            elif target_scan=="auto" or target_scan=="dns":
+                rec = base.dns*4 < now.dns
         elif p_type=="sjqp":
             rec = base.recorde!=now.recorde
             pass
@@ -274,6 +274,7 @@ def stop_task(task):
         task_policy = db.session.query(TaskPolicy).filter_by(for_task = task.task_id).order_by(TaskPolicy.tp_time.desc()).first()
         task.status = "stopped"
         stop_task_monitoring(task)
+
         stop_policy_change_timer(task)
         stop_task_deliver(task_policy)
         db.session.commit()
@@ -285,6 +286,7 @@ def finish_task(task):
         task_policy = task.task_policies[-1]
         task.status = "finish"
         stop_task_monitoring(task)
+        scheduler.remove_job(f"{task.task_id}fail")
         stop_policy_change_timer(task)
         stop_task_deliver(task_policy)
         db.session.commit()
@@ -399,19 +401,19 @@ def calculate_response_rate(task_policy):
     # icmp
     count_above_threshold = db.session.query(TargetStatus).filter(
         TargetStatus.tp_id == task_policy.tp_id,
-        TargetStatus.icmp > 1.5*base.icmp
+        TargetStatus.icmp > 4*base.icmp
     ).count()
     icmp_ratio = (count_above_threshold / total_count) if total_count > 0 else 0
 
     count_above_threshold = db.session.query(TargetStatus).filter(
         TargetStatus.tp_id == task_policy.tp_id,
-        TargetStatus.tcp > 1.5*base.tcp
+        TargetStatus.tcp > 4*base.tcp
     ).count()
     tcp_ratio = (count_above_threshold / total_count) if total_count > 0 else 0
 
     count_above_threshold = db.session.query(TargetStatus).filter(
         TargetStatus.tp_id == task_policy.tp_id,
-        TargetStatus.dns > 1.5*base.dns
+        TargetStatus.dns > 4*base.dns
     ).count()
     dns_ratio = (count_above_threshold / total_count) if total_count > 0 else 0
 

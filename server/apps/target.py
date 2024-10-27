@@ -265,7 +265,7 @@ def get_nodes(query_data):
                 "Name": "编号" + str(node.agent_id),
                 "Ip": nodes_info[node.agent_id],
                 # TODO:根据经纬度调整location的值
-                "Loc": "中国",
+                "Loc": node.con,
                 "Lat": float(node.lat),
                 "Lng": float(node.lng)
             })
@@ -363,10 +363,12 @@ def tcp_delay_query(target, addr_port):
 def dns_delay_query(target, addr_port):
     try:
         res = requests.get(url="http://" + addr_port + "/delay/dns", params={'ip': target}, timeout=5)
-        debug("dns ok:" + addr_port + "-------" + res.text)
+        # debug(res.text)
+        debug("dns ok:" + addr_port + "-------" + str(float(res.text)))
+        # debug("dns ok:" + addr_port + "-------" + res.text)
         dns_delaytable[str(addr_port) + str(target)] = res.text
         return dns_delaytable[str(addr_port) + str(target)]
-    except Exception:
+    except Exception as e:
         return 5000+random.randint(-300,300)
 
 # 状态感知——DNS记录测试接口
