@@ -66,6 +66,7 @@ def execute_command(cmd, job_id, stop_event):
         config = yaml.safe_load(f)
     server_url = config['server']
     try:
+        debug(cmd)
         proc = subprocess.Popen(cmd, 
                                 shell=True, 
                                 stdout=subprocess.PIPE,

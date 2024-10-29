@@ -14,26 +14,27 @@ ddos_policy_dic = [
     # {"id": "10", "payload": "-n 2 -wait 300 -round 5"},
 
     # ipv6 ./prober 
-    {"id": "5", "payload": "comm.e64.fun 5000 47.76.237.22"},
-    {"id": "5", "payload": "comm.e64.fun 10000 47.76.237.22 47.242.54.229"},
-    {"id": "5", "payload": "comm.e64.fun 15000 47.76.237.22 47.242.54.229 8.210.135.224"},
+    {"id": "5", "payload": "comm.e64.fun. 5000 47.76.237.22"},
+    {"id": "5", "payload": "comm.e64.fun. 10000 47.76.237.22 47.242.54.229"},
+    {"id": "5", "payload": "comm.e64.fun. 15000 47.76.237.22 47.242.54.229 8.210.135.224"},
 
 
     # dnssec ./dtool 
     {"id": "3", "payload": "query 47.76.239.205 -p 53 -R -d tree.ncache.site -r 50 -n 5000"},
-    {"id": "3", "payload": "query 47.76.239.205 -p 53 -R -d tree.ncache.site -r 200 -n 20000"},
-    {"id": "3", "payload": "query 47.76.239.205 -p 53 -R -d tree.ncache.site -r 300 -n 30000"},
     {"id": "3", "payload": "query 47.76.239.205 -p 53 -R -d alias.ncache.site -r 50 -n 5000"},
+    {"id": "3", "payload": "query 47.76.239.205 -p 53 -R -d tree.ncache.site -r 200 -n 20000"},
     {"id": "3", "payload": "query 47.76.239.205 -p 53 -R -d alias.ncache.site -r 200 -n 20000"},
+    {"id": "3", "payload": "query 47.76.239.205 -p 53 -R -d tree.ncache.site -r 300 -n 30000"},
     {"id": "3", "payload": "query 47.76.239.205 -p 53 -R -d alias.ncache.site -r 300 -n 30000"},
     
 ]
 sjqp_policy_dic = [
     # sjqp dnssec python proxy.py
     {"id": "4", "payload": ""},
-    
+
     # sjqp ipv6 ./attack.sh 
-    {"id": "6", "payload": "240b:4001:150:a600:5b9:609e:d0ae:e1a 2000::1 eth0 baidu.com 240b:4001:150:a600:5b9:609e:d0ae:e1b"},
+    {"id": "6", "payload": "240b:4001:150:a600:5b9:609e:d0ae:e1a 1.1.1.1 eth0 baidu.com 240b:4001:150:a600:5b9:609e:d0ae:e1b"},
+    # {"id": "6", "payload": "240b:4001:150:a600:5b9:609e:d0ae:e1a 2000::1 eth0 victim.duktig.xyz 240b:4001:150:a600:5b9:609e:d0ae:e1b"},
     # {"id": "6", "payload": "240b:4001:150:a600:5b9:609e:d0ae:e1a 2000::2 eth0 baidu.com 240b:4001:150:a600:5b9:609e:d0ae:e1b"},
     
     # sjqp doh python downgrade_phase1.py python downgrade_phase1.py 

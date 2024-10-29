@@ -142,6 +142,13 @@ class TargetInfo(Schema):
     protect = String()
 
 
+def average_without_max(results):
+    if results:
+        results.remove(max(results))
+        return sum(results) / len(results) if results else 0
+    return 0
+
+
 
 def task_monitoring(task):
     with scheduler.app.app_context():
@@ -174,9 +181,9 @@ def task_monitoring(task):
                 dns_results.append(float(future.result()))
 
         # 计算平均值
-        icmp_avg = sum(icmp_results) / len(icmp_results) if icmp_results else 0
-        tcp_avg = sum(tcp_results) / len(tcp_results) if tcp_results else 0
-        dns_avg = sum(dns_results) / len(dns_results) if dns_results else 0
+        icmp_avg = average_without_max(icmp_results)
+        tcp_avg = average_without_max(tcp_results)
+        dns_avg = average_without_max(dns_results)
         # id, ip_port = nodes_info.items()[0]
         query_data = {
             'rev' : task.target.addrv4 if task.target.addrv4 else task.target.addrv6,
@@ -185,15 +192,15 @@ def task_monitoring(task):
         }
         target_domain = get_record(query_data)
         try:
-            first_ip = target_domain[0]["rrset"] if target_domain else None
+            ip_list = str([entry["rrset"] for entry in target_domain])
         except:
-            first_ip = ""
+            ip_list = ""
         target_status = TargetStatus(
             tp_id = task.task_policies[-1].tp_id,
             icmp = icmp_avg,
             tcp = tcp_avg,
             dns = dns_avg,
-            recorde = first_ip,
+            recorde = ip_list,
         )
 
         db.session.add(target_status)
@@ -391,12 +398,12 @@ def get_record(query_data):
     # 根据rev参数配置解析器
     is_Do53 = any(proto if proto in rev else False for proto in protols)
     if not is_Do53:
-        # 存在端口指定
-        if ":" in rev:
-            res = rev.split(":")
-            myResolver.nameservers = [dns.nameserver.Do53Nameserver(res[0], port=res[1])]
-        else:
-            myResolver.nameservers = [rev]
+        # # 存在端口指定
+        # if ":" in rev:
+        #     res = rev.split(":")
+        #     myResolver.nameservers = [dns.nameserver.Do53Nameserver(res[0], port=res[1])]
+        # else:
+        myResolver.nameservers = [rev]
     else:
         #  doh服务
         if "https" in rev:
@@ -410,6 +417,7 @@ def get_record(query_data):
         for r in myAnswers.rrset:
             ans.append({"rrset": str(r)})
     return ans
+
 @bp.get("/target_check")
 @bp.doc("展示数据库中的目标解析结果", description="参数说明:</br>" +
                                                 "rev:解析器的IP地址</br>"
@@ -435,7 +443,6 @@ def get_target_record(query_data):
             }
         ]
     }
-  
     return {"code": 200, 'ans': res["ans"]}
 
 @bp.get("/check")

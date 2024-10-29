@@ -129,9 +129,11 @@ def make_task(json_data):
         if task.target_rr == "" or task.target_domain == "":
             return {"code": 400, "msg": "数据欺骗缺乏目标域名或注入参数"}
 
-    if task.target_rr is not None:
+    try:
         task.target_rtype, task.target_rr = task.target_rr.split(" ")
-
+    except Exception:
+        task.target_rtype = None
+        task.target_rr = None
     # 关联目标
     Ip = str(json_data.get("target"))
     ip_version = is_ipaddress(Ip)
@@ -235,6 +237,7 @@ def stop_policy_change_timer(task):
 # 任务成功检测
 def effective_detection(task_policy):
     with scheduler.app.app_context():
+        task = db.session.query(Task).filter(Task.task_id == task_policy.for_task).first()
         base_policy = db.session.query(TaskPolicy).filter(TaskPolicy.for_task==task_policy.for_task).order_by(TaskPolicy.tp_time.asc()).first()
         base = db.session.query(TargetStatus).filter_by(tp_id=base_policy.tp_id).order_by(TargetStatus.time.asc()).first()
         now = db.session.query(TargetStatus).filter_by(tp_id=task_policy.tp_id).order_by(TargetStatus.time.desc()).first()
@@ -244,13 +247,13 @@ def effective_detection(task_policy):
         if p_type=="ddos":
             target_scan = db.session.query(Task).filter_by(task_id = task_policy.for_task).first().target_scan
             if target_scan=="icmp":
-                rec = base.icmp*4 < now.icmp       
+                rec = base.icmp*4 < now.icmp
             elif target_scan=="tcp":
-                rec = base.tcp*4 < now.tcp       
+                rec = base.tcp*4 < now.tcp
             elif target_scan=="auto" or target_scan=="dns":
                 rec = base.dns*4 < now.dns
         elif p_type=="sjqp":
-            rec = base.recorde!=now.recorde
+            rec = task.target_rr in now.recorde
             pass
         debug(f"能行吗{rec}：是{p_type}")
         return rec
@@ -393,7 +396,7 @@ def tasks_state(query_data):
 def calculate_response_rate(task_policy):
     
     base_policy = db.session.query(TaskPolicy).filter(TaskPolicy.for_task==task_policy.for_task).order_by(TaskPolicy.tp_time.asc()).first()
-    base = db.session.query(TargetStatus).filter_by(tp_id=base_policy.tp_id).order_by(TargetStatus.time.desc()).first()
+    base = db.session.query(TargetStatus).filter_by(tp_id=base_policy.tp_id).order_by(TargetStatus.time.asc()).first()
 
     # 查询总记录数和大于 threshold 的记录数
     total_count = db.session.query(TargetStatus).filter_by(tp_id=task_policy.tp_id).count()

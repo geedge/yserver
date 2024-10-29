@@ -10,7 +10,7 @@ from flask import request
 
 from .util import error, debug
 
-from model import Agent, TaskLog, Policy, TaskPolicy
+from model import Agent, Task, TaskLog, Policy, TaskPolicy
 from exts import db
 from sqlalchemy.exc import SQLAlchemyError
 
@@ -136,7 +136,11 @@ def stop_task_deliver(task_policy):
 def task_ret(json_data):
     if json_data["info"] == "finish":
         task_policy = db.session.query(TaskPolicy).get(json_data["taskpolicy"])
-        task_policy.task.status = "stopped"
+        task = db.session.query(Task).filter(Task.task_id == task_policy.for_task).first()
+        if task.status != "finish":
+            task.status = "stopped"
+
+
         db.session.commit()
         return {"code": 200, "msg": "ok"}
     import re
@@ -155,6 +159,7 @@ def task_ret(json_data):
                 tlog_info = entry,
                 tlog_tp = json_data["taskpolicy"]
         )
+        debug(task_log.tlog_info)
         db.session.add(task_log)
     try:
         db.session.commit()
