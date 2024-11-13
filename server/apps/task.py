@@ -99,7 +99,8 @@ def valid_task_info(task_param: dict):
     # 任务执行时限，单位分钟
     "run_time": Integer(load_default=600),
     # 运行配置
-    "run_flag": String(validate=OneOf(["now", "man"]), load_default="now")
+    "run_flag": String(validate=OneOf(["now", "man"]), load_default="now"),
+    "pname": String(required=False),
 }, example={'name': "test_task", 'target': "47.76.239.205", 'agent': "inrz674e", 'target_domain': "www.google.com",
             'target_rr': "NS ns.ourattack.com",
             'policy': "auto", 'scan': "auto",
@@ -109,8 +110,15 @@ def valid_task_info(task_param: dict):
     "msg": String()
 })
 # TODO: 需要更新接口，created_by
-def make_task(json_data):
+def create_task(json_data):
+    task = make_task(json_data=json_data)
+    pname = json_data.get("pname")
+    if pname is None:
+        return make_multi_task(task)
+    else:
+        return make_single_task(task,pname)
 
+def make_task(json_data):
     task = Task(
         task_id=str(uuid.uuid1()),
         task_name=json_data.get("name"),
@@ -156,8 +164,7 @@ def make_task(json_data):
     for agent in agents:
         selected_nodes_info[agent.agent_id] = agent.ipaddr.split("|")[0] + ":" + str(agent.port)
     task.SCAN_AGENT_ID_LIST = json.dumps(selected_nodes_info)
-
-    # 插入task
+    
     try:
         db.session.add(task)
         db.session.commit()
@@ -165,6 +172,9 @@ def make_task(json_data):
         db.session.rollback()
         error(str(e))
         return {"code": 500, "msg": str(e)}
+    return task
+
+def make_multi_task(task):
 
     # 任务策略初始化
     # task_policy = init_task_policy(task)
@@ -204,6 +214,35 @@ def make_task(json_data):
             error(str(err))
             return {"code": 500, "msg": str(err)}
     return {"code": 200, "msg": "ok"}
+
+
+def make_single_task(task, pname):
+    from .policy_list import get_single_policy
+    policy = get_single_policy(task.ptype, pname)
+
+    task_policy = TaskPolicy(
+        policy = policy["id"],
+        policy_param = policy["payload"],
+        for_task = task.task_id
+    )
+    db.session.add(task_policy)
+    db.session.commit()
+    if task.status == "working":
+        err = deliver_task(task_policy)
+        if err is not None:
+            error(str(err))
+            return {"code": 500, "msg": str(err)}
+    from .target import task_monitoring
+    scheduler.add_job(
+        func = task_monitoring, 
+        trigger = 'date', 
+        args = (task, ),
+        id = f"{task.task_id}single",
+        run_date = datetime.now() + timedelta(seconds=30)
+    )
+    return {"code": 200, "msg": "ok"}
+
+
 
 
 def policy_change_timer(task):

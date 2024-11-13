@@ -152,7 +152,8 @@ def average_without_max(results):
 
 def task_monitoring(task):
     with scheduler.app.app_context():
-        target_status = task.task_policies[-1].target_status
+        # target_status = task.task_policies[-1].target_status
+        task = db.session.query(Task).filter_by(task_id = task.task_id).first()
         addr = task.target.addrv4 if task.target.addrv4 else task.target.addrv6
 
         nodes_info = json.loads(task.SCAN_AGENT_ID_LIST)
